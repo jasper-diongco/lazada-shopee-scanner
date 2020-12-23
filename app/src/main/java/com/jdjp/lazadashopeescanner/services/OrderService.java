@@ -88,7 +88,7 @@ public class OrderService {
         requestQueue.add(jsonobj);
     }
 
-    public static Order parseOrder(JSONObject jsonObject) {
+    public static Order parseOrder(JSONObject jsonObject) throws Exception {
         Order order = new Order();
 
         try {
@@ -120,6 +120,7 @@ public class OrderService {
             order.setStatus(strStatus);
         } catch (Exception ex) {
             Log.e(TAG, "parseOrder: " + ex.getMessage(), ex);
+            throw new Exception("Error Parsing Order Response");
         }
         return order;
     }

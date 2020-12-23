@@ -16,7 +16,7 @@ public interface BatchDao {
     @Insert
     long insert(Batch batch);
 
-    @Query("SELECT batches.*, (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId) AS 'scanCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status = 'ready_to_ship') AS 'readyToShipCount' FROM batches WHERE batchId = :batchId")
+    @Query("SELECT batches.*, (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId) AS 'scanCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status = 'ready_to_ship') AS 'readyToShipCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status = 'canceled') AS 'canceledCount' FROM batches WHERE batchId = :batchId")
     LiveData<BatchWithExtraProps> getBatchById(int batchId);
 
 

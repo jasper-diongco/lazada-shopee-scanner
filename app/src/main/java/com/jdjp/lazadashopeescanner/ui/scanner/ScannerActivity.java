@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import android.Manifest;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.media.AudioManager;
@@ -23,6 +24,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,6 +40,7 @@ import com.jdjp.lazadashopeescanner.model.Order;
 import com.jdjp.lazadashopeescanner.model.ShopAccount;
 import com.jdjp.lazadashopeescanner.model.pojo.BatchWithExtraProps;
 import com.jdjp.lazadashopeescanner.services.OrderService;
+import com.jdjp.lazadashopeescanner.ui.order_list.OrdersActivity;
 import com.jdjp.lazadashopeescanner.util.Constant;
 import com.jdjp.lazadashopeescanner.util.SignGeneratorUtil;
 
@@ -55,9 +58,10 @@ public class ScannerActivity extends AppCompatActivity {
 
     private BarcodeDetector barcodeDetector;
     private CameraSource cameraSource;
-    private static final int DELAY = 1200;
+    private static final int DELAY = 2500;
     //This class provides methods to play DTMF tones
     private ToneGenerator toneGen1;
+    private ToneGenerator toneGen2;
 
     private String barcodeData;
     private long lastTimestamp = 0;
@@ -72,8 +76,13 @@ public class ScannerActivity extends AppCompatActivity {
     private TextView tvStatuses;
     private TextView tvScanCount;
     private TextView tvReadyToShipCount;
+    private TextView tvCanceledCount;
     private Button btnStartBatchScan;
     private Button btnReadyToShip;
+    private ProgressBar progressBarFetchingOrder;
+    private TextView tvStartScanning;
+    private TextView tvBatchScanIndicator;
+    private Button btnStop;
 
     //view models
     private ScannerViewModel viewModel;
@@ -81,9 +90,11 @@ public class ScannerActivity extends AppCompatActivity {
     //data
     private List<ShopAccount> shopAccounts;
     private ShopAccount selectedShopAccount;
+    private int selectedShopAccountIndex;
     private Batch batch;
     private Order order;
     private boolean listeningToBatch;
+    private int tryAccountCount = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +104,7 @@ public class ScannerActivity extends AppCompatActivity {
 
         //init tone for scanner
         toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC,100);
+        toneGen2 = new ToneGenerator(AudioManager.STREAM_RING,100);
 
         //bind views
         surfaceView = findViewById(R.id.surface_view);
@@ -101,13 +113,19 @@ public class ScannerActivity extends AppCompatActivity {
         tvStatuses = findViewById(R.id.tvStatuses);
         btnStartBatchScan = findViewById(R.id.btnStartBatchScan);
         btnReadyToShip = findViewById(R.id.btnReadyToShip);
+        tvCanceledCount = findViewById(R.id.tvCanceledCount);
         tvScanCount = findViewById(R.id.tvScanCount);
         tvReadyToShipCount = findViewById(R.id.tvReadyToShipCount);
+        progressBarFetchingOrder = findViewById(R.id.progressBarFetchingOrder);
+        tvStartScanning = findViewById(R.id.tvStartScanning);
+        tvBatchScanIndicator = findViewById(R.id.tvBatchScanIndicator);
+        btnStop = findViewById(R.id.btnStop);
 
         // init methods
         initialiseDetectorsAndSources();
         defineActionBar();
         initOrderService();
+        setBatchScanOngoing(false);
 
         //view model
         viewModel =  new ViewModelProvider(this,
@@ -139,6 +157,9 @@ public class ScannerActivity extends AppCompatActivity {
 
                 batch = new Batch();
                 viewModel.insertBatch(batch);
+
+                setBatchScanOngoing(true);
+                toneGen2.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 150);
             }
         });
 
@@ -156,6 +177,16 @@ public class ScannerActivity extends AppCompatActivity {
                         .setNegativeButton(android.R.string.no, null).show();
             }
         });
+
+        btnStop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent resultIntent = new Intent();
+                resultIntent.putExtra("batchId", batch.getBatchId());
+                setResult(RESULT_OK, resultIntent);
+                finish();
+            }
+        });
     }
 
     @Override
@@ -163,12 +194,39 @@ public class ScannerActivity extends AppCompatActivity {
 
         switch (item.getItemId()) {
             case android.R.id.home: {
-                finish();
+                if(batch != null) {
+                    askForExit();
+                } else {
+                    finish();
+                }
+
                 break;
             }
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if(batch != null) {
+            askForExit();
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    private void askForExit() {
+        new AlertDialog.Builder(ScannerActivity.this)
+                .setTitle("Exit Scanner")
+                .setMessage("Batch Scan Is Ongoing. Do You Want To Exit?")
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        finish();
+                    }})
+                .setNegativeButton(android.R.string.no, null).show();
+
     }
 
     private void initOrderService() {
@@ -178,30 +236,74 @@ public class ScannerActivity extends AppCompatActivity {
             @Override
             public void onOrderFetchedResponse(JSONObject response) {
                 Log.d(TAG, "onOrderFetchedResponse: " + response);
-                order = OrderService.parseOrder(response);
+                showProgressBarFetchingOrder(false);
 
-                displayData(order);
+                try {
+                    String code = response.getString("code");
 
-                if(batch == null) return;
+                    if(code.equals("16")) {
+                        //switch account
+                        selectedShopAccountIndex++;
 
-                if(!listeningToBatch) {
-                    viewModel.getBatchById(batch.getBatchId()).observe(ScannerActivity.this, new Observer<BatchWithExtraProps>() {
-                        @Override
-                        public void onChanged(BatchWithExtraProps batchWithExtraProps) {
-                            displayBatchCount(batchWithExtraProps);
+                        if(selectedShopAccountIndex == shopAccounts.size()) {
+                            selectedShopAccountIndex = 0;
                         }
-                    });
 
-                    listeningToBatch = true;
+                        spinnerAccount.setSelection(selectedShopAccountIndex);
+
+
+
+                        if(tryAccountCount == shopAccounts.size()) {
+                            //invalid code, try again
+                            showErrorText("TRY AGAIN");
+                            return;
+                        }
+
+                        tryAccountCount++;
+
+                        //try again with another account
+                        fetchOrder(barcodeData);
+                        return;
+                    } else if (code.equals("InvalidParameter") || code.equals("MISSING_PARAMETER")) {
+                        //invalid barcode
+                        showErrorText("ERROR. INVALID BARCODE");
+                        return;
+                    }
+
+                    //reset try account count
+                    tryAccountCount = 0;
+
+                    order = OrderService.parseOrder(response);
+
+                    displayData(order);
+
+                    if (batch == null) return;
+
+                    if (!listeningToBatch) {
+                        viewModel.getBatchById(batch.getBatchId()).observe(ScannerActivity.this, new Observer<BatchWithExtraProps>() {
+                            @Override
+                            public void onChanged(BatchWithExtraProps batchWithExtraProps) {
+                                displayBatchCount(batchWithExtraProps);
+                            }
+                        });
+
+                        listeningToBatch = true;
+                    }
+
+                    order.setBatchId(batch.getBatchId());
+                    viewModel.insertOrder(order);
+                } catch (Exception ex) {
+                    Log.e(TAG, "onOrderFetchedResponse: " + ex.getMessage(), ex);
+                    Toast.makeText(ScannerActivity.this, "An Error Has Occurred: " + ex.getMessage() , Toast.LENGTH_LONG).show();
+                    showErrorText("ERROR. TRY AGAIN");
                 }
-
-                order.setBatchId(batch.getBatchId());
-                viewModel.insertOrder(order);
             }
 
             @Override
             public void onOrderFetchedErrorResponse(VolleyError error) {
                 Log.e(TAG, "onOrderFetchedErrorResponse: " + error.getMessage(), error);
+                Toast.makeText(ScannerActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
+                showErrorText("ERROR. TRY AGAIN");
             }
         });
 
@@ -225,6 +327,8 @@ public class ScannerActivity extends AppCompatActivity {
     }
 
     private void initSpinnerAccount() {
+        selectedShopAccountIndex = 0;
+
         ArrayAdapter<ShopAccount> adapter =
                 new ArrayAdapter<ShopAccount>(getApplicationContext(),  android.R.layout.simple_spinner_dropdown_item, shopAccounts);
         adapter.setDropDownViewResource( android.R.layout.simple_spinner_dropdown_item);
@@ -232,6 +336,7 @@ public class ScannerActivity extends AppCompatActivity {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedShopAccount = shopAccounts.get(position);
+                selectedShopAccountIndex = position;
             }
 
             @Override
@@ -241,6 +346,7 @@ public class ScannerActivity extends AppCompatActivity {
         });
 
         spinnerAccount.setAdapter(adapter);
+
     }
 
     private void initialiseDetectorsAndSources() {
@@ -317,8 +423,11 @@ public class ScannerActivity extends AppCompatActivity {
                             } else {
 
                                 barcodeData = barcodes.valueAt(0).displayValue;
+
                                 barcodeText.setText(barcodeData);
                                 toneGen1.startTone(ToneGenerator.TONE_CDMA_PIP, 150);
+
+
 
                                 //fetch order using barcode
                                 fetchOrder(barcodeData);
@@ -355,6 +464,12 @@ public class ScannerActivity extends AppCompatActivity {
         }
 
         map.put("sign", sign);
+
+        //show loading
+        showProgressBarFetchingOrder(true);
+
+        //hide start scanning text
+        tvStartScanning.setVisibility(View.GONE);
 
         // request to api
         orderService.fetchOrder(map);
@@ -399,8 +514,11 @@ public class ScannerActivity extends AppCompatActivity {
                 status = "Ready To Ship";
                 tvStatuses.setTextColor(getResources().getColor(R.color.green));
                 break;
-            case "unpaid":
+            case "pending":
                 status = "Pending";
+                break;
+            case "unpaid":
+                status = "Unpaid";
                 break;
             case "delivered":
                 status = "Delivered";
@@ -416,12 +534,58 @@ public class ScannerActivity extends AppCompatActivity {
 
         tvStatuses.setText(status);
 
-        btnReadyToShip.setVisibility(order.getStatus().contains("unpaid") ? View.VISIBLE : View.GONE);
+        btnReadyToShip.setVisibility(order.getStatus().contains("pending") ? View.VISIBLE : View.GONE);
+    }
+
+    private void showProgressBarFetchingOrder(boolean show) {
+
+        if(show && progressBarFetchingOrder.getVisibility() != View.VISIBLE) {
+            progressBarFetchingOrder.setVisibility(View.VISIBLE);
+        } else {
+            progressBarFetchingOrder.setVisibility(View.GONE);
+        }
+
+        tvStatuses.setVisibility(!show ? View.VISIBLE : View.GONE);
+        barcodeText.setVisibility(!show ? View.VISIBLE : View.GONE);
+        btnReadyToShip.setVisibility(!show ? View.VISIBLE : View.GONE);
+    }
+
+    private void showErrorText(String text) {
+        progressBarFetchingOrder.setVisibility(View.GONE);
+        tvStatuses.setVisibility(View.VISIBLE);
+        barcodeText.setVisibility(View.VISIBLE);
+        btnReadyToShip.setVisibility(View.GONE);
+        tvStatuses.setTextColor(getResources().getColor(R.color.red));
+
+        tvStatuses.setText(text);
+    }
+
+    private void setBatchScanOngoing(boolean ongoing) {
+        String text;
+        int color;
+
+        if (ongoing) {
+            text = "Batch Scan Ongoing";
+            color = getResources().getColor(R.color.green);
+
+        } else {
+            text = "Batch Scan Not Started";
+            color = getResources().getColor(R.color.grey);
+        }
+
+        tvBatchScanIndicator.setText(text);
+        tvBatchScanIndicator.setBackgroundColor(color);
+
+        btnStartBatchScan.setVisibility(ongoing ? View.GONE : View.VISIBLE);
+        btnStop.setVisibility(ongoing ? View.VISIBLE : View.GONE);
+
+
     }
 
     private void displayBatchCount(BatchWithExtraProps batchWithExtraProps) {
         tvScanCount.setText(String.valueOf(batchWithExtraProps.getScanCount()));
         tvReadyToShipCount.setText(String.valueOf(batchWithExtraProps.getReadyToShipCount()));
+        tvCanceledCount.setText(String.valueOf(batchWithExtraProps.getCanceledCount()));
     }
 
     private void defineActionBar() {

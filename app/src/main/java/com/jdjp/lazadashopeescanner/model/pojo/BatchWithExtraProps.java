@@ -10,6 +10,7 @@ public class BatchWithExtraProps {
 
     private int scanCount;
     private int readyToShipCount;
+    private int canceledCount;
 
     public Batch getBatch() {
         return batch;
@@ -33,6 +34,14 @@ public class BatchWithExtraProps {
 
     public void setReadyToShipCount(int readyToShipCount) {
         this.readyToShipCount = readyToShipCount;
+    }
+
+    public int getCanceledCount() {
+        return canceledCount;
+    }
+
+    public void setCanceledCount(int canceledCount) {
+        this.canceledCount = canceledCount;
     }
 
     @Override

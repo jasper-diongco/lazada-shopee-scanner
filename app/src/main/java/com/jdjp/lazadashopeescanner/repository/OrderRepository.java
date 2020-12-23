@@ -2,9 +2,13 @@ package com.jdjp.lazadashopeescanner.repository;
 
 import android.app.Application;
 
+import androidx.lifecycle.LiveData;
+
 import com.jdjp.lazadashopeescanner.AppDatabase;
 import com.jdjp.lazadashopeescanner.dao.OrderDao;
 import com.jdjp.lazadashopeescanner.model.Order;
+
+import java.util.List;
 
 
 public class OrderRepository {
@@ -13,6 +17,10 @@ public class OrderRepository {
     public OrderRepository(Application application) {
         AppDatabase database = AppDatabase.getInstance(application);
         orderDao = database.orderDao();
+    }
+
+    public LiveData<List<Order>> getAllOrdersByBatchId(int batchId) {
+        return orderDao.getAllOrdersByBatchId(batchId);
     }
 
     public void insert(Order order) {
