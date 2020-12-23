@@ -97,9 +97,9 @@ public class ShopAccountsAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         }
 
         public void bind(ShopAccount shopAccount) {
-            tvTitle.setText(shopAccount.getShortCode() + " - " + shopAccount.getAccount());
+            tvTitle.setText(shopAccount.getName() + " - " + shopAccount.getShortCode());
 
-            String pattern = "MM-dd-yyyy hh:mm a";
+            String pattern = "MM-dd-yyyy EEE hh:mm a";
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
             String date = simpleDateFormat.format(shopAccount.getExpiryDate());
 

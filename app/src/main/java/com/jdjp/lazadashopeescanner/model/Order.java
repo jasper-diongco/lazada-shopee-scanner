@@ -1,33 +1,35 @@
 package com.jdjp.lazadashopeescanner.model;
 
-import java.util.Arrays;
+import androidx.annotation.NonNull;
+import androidx.room.Entity;
 
+
+@Entity(tableName = "orders", primaryKeys = { "orderNumber", "batchId" })
 public class Order {
+    @NonNull
     private String orderNumber;
+    @NonNull
+    private int batchId;
+    @NonNull
     private String customerFirstName;
+    @NonNull
     private String customerLastName;
+    @NonNull
     private double price;
+    @NonNull
     private double shippingFee;
+    @NonNull
     private double shippingFeeOriginal;
+    @NonNull
     private String paymentMethod;
+    @NonNull
     private int itemsCount;
-    private String[] statuses;
+    @NonNull
+    private String status;
+    @NonNull
     private String createdAt;
+    @NonNull
     private String updatedAt;
-
-    public String getStatusesString() {
-        String result = "";
-
-        for (int i = 0 ; i < statuses.length; i++) {
-            result += statuses[i];
-
-            if(i != statuses.length - 1) {
-                result += ", ";
-            }
-        }
-
-        return result;
-    }
 
     public String getOrderNumber() {
         return orderNumber;
@@ -35,6 +37,14 @@ public class Order {
 
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
+    }
+
+    public int getBatchId() {
+        return batchId;
+    }
+
+    public void setBatchId(int batchId) {
+        this.batchId = batchId;
     }
 
     public String getCustomerFirstName() {
@@ -93,14 +103,6 @@ public class Order {
         this.itemsCount = itemsCount;
     }
 
-    public String[] getStatuses() {
-        return statuses;
-    }
-
-    public void setStatuses(String[] statuses) {
-        this.statuses = statuses;
-    }
-
     public String getCreatedAt() {
         return createdAt;
     }
@@ -117,6 +119,15 @@ public class Order {
         this.updatedAt = updatedAt;
     }
 
+    @NonNull
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(@NonNull String status) {
+        this.status = status;
+    }
+
     @Override
     public String toString() {
         return "Order{" +
@@ -128,7 +139,6 @@ public class Order {
                 ", shippingFeeOriginal=" + shippingFeeOriginal +
                 ", paymentMethod='" + paymentMethod + '\'' +
                 ", itemsCount=" + itemsCount +
-                ", statuses=" + Arrays.toString(statuses) +
                 ", createdAt='" + createdAt + '\'' +
                 ", updatedAt='" + updatedAt + '\'' +
                 '}';

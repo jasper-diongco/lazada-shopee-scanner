@@ -23,6 +23,7 @@ public class AuthorizationService {
     private Context context;
     private AccessTokenCreate accessTokenCreateListener;
     private FetchLatestAuthCode fetchLatestAuthCodeListener;
+    private GetSellerDetails getSellerDetailsListener;
 
     public AuthorizationService(Context context) {
         this.context = context;
@@ -52,6 +53,37 @@ public class AuthorizationService {
             @Override
             public void onErrorResponse(VolleyError error) {
                 accessTokenCreateListener.onAccessTokenCreateErrorResponse(error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String>  params = new HashMap<String, String>();
+                params.put("Content-Type", "application/json");
+                params.put("Accept", "application/json");
+                params.put("X-Requested-With", "XMLHttpRequest");
+                return params;
+            }
+        };
+
+        requestQueue.add(jsonobj);
+    }
+
+    public void getSellerDetails(Map<String, String> params) {
+
+        RequestQueue requestQueue = MyRequestQueue.getInstance(context).getRequestQueue();
+
+        //request
+        JsonObjectRequest jsonobj = new JsonObjectRequest(Request.Method.GET,
+                Constant.GET_SELLER_URL + "?app_key=" + params.get("app_key") + "&sign_method=" + params.get("sign_method") + "&timestamp="+ params.get("timestamp") +"&access_token=" + params.get("access_token") + "&sign=" + params.get("sign"),
+                null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                getSellerDetailsListener.onGetSellerDetailsResponse(response);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                getSellerDetailsListener.onGetSellerDetailsErrorResponse(error);
             }
         }) {
             @Override
@@ -120,7 +152,7 @@ public class AuthorizationService {
         return shopAccount;
     }
 
-    //getters
+    //setters
     public void setAccessTokenCreateListener(AccessTokenCreate accessTokenCreateListener) {
         this.accessTokenCreateListener = accessTokenCreateListener;
     }
@@ -129,6 +161,9 @@ public class AuthorizationService {
         this.fetchLatestAuthCodeListener = fetchLatestAuthCodeListener;
     }
 
+    public void setGetSellerDetailsListener(GetSellerDetails getSellerDetailsListener) {
+        this.getSellerDetailsListener = getSellerDetailsListener;
+    }
 
     //interfaces
     public interface AccessTokenCreate {
@@ -139,5 +174,10 @@ public class AuthorizationService {
     public interface FetchLatestAuthCode {
         void onFetchLatestAuthCodeResponse(JSONObject response);
         void onFetchLatestAuthCodeErrorResponse(VolleyError error);
+    }
+
+    public interface GetSellerDetails {
+        void onGetSellerDetailsResponse(JSONObject response);
+        void onGetSellerDetailsErrorResponse(VolleyError error);
     }
 }

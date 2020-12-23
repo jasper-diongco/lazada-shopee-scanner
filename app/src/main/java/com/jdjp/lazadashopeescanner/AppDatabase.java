@@ -6,11 +6,15 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
+import com.jdjp.lazadashopeescanner.dao.BatchDao;
+import com.jdjp.lazadashopeescanner.dao.OrderDao;
 import com.jdjp.lazadashopeescanner.dao.ShopAccountDao;
+import com.jdjp.lazadashopeescanner.model.Batch;
+import com.jdjp.lazadashopeescanner.model.Order;
 import com.jdjp.lazadashopeescanner.model.ShopAccount;
 
 @Database(entities =
-        {ShopAccount.class}
+        {ShopAccount.class, Batch.class, Order.class}
         , version = 1)
 public abstract class AppDatabase extends RoomDatabase {
     private static AppDatabase instance;
@@ -27,4 +31,6 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
     public abstract ShopAccountDao shopAccountDao();
+    public abstract BatchDao batchDao();
+    public abstract OrderDao orderDao();
 }

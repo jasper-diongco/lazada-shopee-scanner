@@ -13,6 +13,8 @@ public class ShopAccount {
     private String account;
 
     @NonNull
+    private String name;
+    @NonNull
     private String accessToken;
     @NonNull
     private String refreshToken;
@@ -36,8 +38,10 @@ public class ShopAccount {
 
     @Override
     public String toString() {
-        return shortCode + " - " + account;
+        return name + " - " + shortCode;
     }
+
+
 
     public String getAccount() {
         return account;
@@ -45,6 +49,15 @@ public class ShopAccount {
 
     public void setAccount(String account) {
         this.account = account;
+    }
+
+    @NonNull
+    public String getName() {
+        return name;
+    }
+
+    public void setName(@NonNull String name) {
+        this.name = name;
     }
 
     public String getShortCode() {

@@ -54,8 +54,8 @@
         android:text="[Status]"
         android:textAlignment="center"
         android:textAppearance="@style/TextAppearance.AppCompat.Large"
-        android:textSize="30sp"
-        app:layout_constraintEnd_toStartOf="@+id/button2"
+        android:textSize="24sp"
+        app:layout_constraintEnd_toStartOf="@+id/btnReadyToShip"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/divider2" />
 
@@ -69,17 +69,18 @@
         app:layout_constraintTop_toBottomOf="@+id/surface_view" />
 
     <Button
-        android:id="@+id/button2"
+        android:id="@+id/btnReadyToShip"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:layout_marginEnd="8dp"
         android:text="Ready to ship"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/divider2" />
 
     <Button
-        android:id="@+id/button3"
+        android:id="@+id/btnStartBatchScan"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
@@ -99,7 +100,7 @@
         app:layout_constraintTop_toTopOf="@+id/textView4" />
 
     <TextView
-        android:id="@+id/textView3"
+        android:id="@+id/tvReadyToShipCount"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
@@ -116,11 +117,11 @@
         android:layout_marginStart="8dp"
         android:layout_marginBottom="2dp"
         android:text="Total Scan"
-        app:layout_constraintBottom_toTopOf="@+id/textView5"
+        app:layout_constraintBottom_toTopOf="@+id/tvScanCount"
         app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
-        android:id="@+id/textView5"
+        android:id="@+id/tvScanCount"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"

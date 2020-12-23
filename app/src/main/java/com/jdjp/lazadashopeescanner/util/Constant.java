@@ -10,4 +10,8 @@ public class Constant {
     public static final String FETCH_LATEST_AUTH_CODE_URL = "https://lazada-callback-code.herokuapp.com/auth_codes/latest?apiKey=secretkey12345";
     public static final String GET_ORDER_URL = "https://api.lazada.com.ph/rest/order/get";
     public static final String GET_ORDER_NAME = "/order/get";
+    public static final String GET_SELLER_URL = "https://api.lazada.com.ph/rest/seller/get";
+    public static final String GET_SELLER_NAME = "/seller/get";
+    public static final String GET_ORDER_ITEMS_URL = "https://api.lazada.com.ph/rest/order/items/get";
+    public static final String GET_ORDER_ITEMS_NAME = "/order/items/get";
 }

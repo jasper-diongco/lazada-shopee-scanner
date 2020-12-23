@@ -53,6 +53,9 @@ public class ShopAccountListActivity extends AppCompatActivity {
     //services
     private AuthorizationService authorizationService;
 
+    //data
+    private ShopAccount shopAccount;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -133,34 +136,6 @@ public class ShopAccountListActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    private void requestAccessToken(String authCode) {
-        //declare params value
-        String appKey = Constant.APP_KEY;
-        String appSecret = Constant.APP_SECRET;
-        String code = authCode;
-        String signMethod = Constant.SIGN_METHOD;
-        String timestamp = String.valueOf(System.currentTimeMillis());
-        String sign = "";
-
-        //generate sign for this request
-        Map<String, String> map = new HashMap<>();
-        map.put("app_key", appKey);
-        map.put("app_secret", appSecret);
-        map.put("code", code);
-        map.put("sign_method", signMethod);
-        map.put("timestamp", timestamp);
-
-        try {
-            sign = SignGeneratorUtil.signApiRequest(map, null, appSecret, signMethod, Constant.CREATE_TOKEN_NAME);
-        } catch (Exception ex) {
-            Log.d(TAG, "onCreate: " + ex.getMessage());
-        }
-
-        map.put("sign", sign);
-
-        authorizationService.createAccessToken(map);
-    }
-
     private void initAuthService() {
         authorizationService = new AuthorizationService(this);
 
@@ -193,15 +168,17 @@ public class ShopAccountListActivity extends AppCompatActivity {
                 Log.d(TAG, "onAccessTokenCreateResponse: " + response);
 
                 try {
-                    ShopAccount shopAccount = AuthorizationService.parseShopAccount(response);
+                    ShopAccount _shopAccount = AuthorizationService.parseShopAccount(response);
+                    shopAccount = _shopAccount;
 
-                    viewModel.insertShopAccount(shopAccount);
+                    getSellerDetails();
+
                 } catch (Exception ex) {
                     Toast.makeText(ShopAccountListActivity.this, "An Error Has Occurred: " + ex.getMessage(), Toast.LENGTH_SHORT).show();
                 }
 
 
-                showProgressBar(false);
+
             }
 
             @Override
@@ -212,8 +189,92 @@ public class ShopAccountListActivity extends AppCompatActivity {
             }
         });
 
+        authorizationService.setGetSellerDetailsListener(new AuthorizationService.GetSellerDetails() {
+            @Override
+            public void onGetSellerDetailsResponse(JSONObject response) {
+                Log.d(TAG, "onGetSellerDetailsResponse: " + response);
+
+                try {
+                    JSONObject data = response.getJSONObject("data");
+                    String sellerName = data.getString("name");
+                    shopAccount.setName(sellerName);
+
+                    viewModel.insertShopAccount(shopAccount);
+                } catch (Exception ex) {
+                    Log.e(TAG, "onGetSellerDetailsResponse: " + ex.getMessage(), ex);
+                    Toast.makeText(ShopAccountListActivity.this, "An Error Has Occurred While Saving To DB", Toast.LENGTH_SHORT).show();
+                }
+
+                showProgressBar(false);
+            }
+
+            @Override
+            public void onGetSellerDetailsErrorResponse(VolleyError error) {
+                Log.e(TAG, "onGetSellerDetailsErrorResponse: " + error.getMessage(), error);
+                Toast.makeText(ShopAccountListActivity.this, "An Error Has Occurred. Try Again.", Toast.LENGTH_SHORT).show();
+                showProgressBar(false);
+            }
+        });
+
 
     }
+
+    private void requestAccessToken(String authCode) {
+        //declare params value
+        String appKey = Constant.APP_KEY;
+        String appSecret = Constant.APP_SECRET;
+        String code = authCode;
+        String signMethod = Constant.SIGN_METHOD;
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String sign = "";
+
+        //generate sign for this request
+        Map<String, String> map = new HashMap<>();
+        map.put("app_key", appKey);
+        map.put("app_secret", appSecret);
+        map.put("code", code);
+        map.put("sign_method", signMethod);
+        map.put("timestamp", timestamp);
+
+        try {
+            sign = SignGeneratorUtil.signApiRequest(map, null, appSecret, signMethod, Constant.CREATE_TOKEN_NAME);
+        } catch (Exception ex) {
+            Log.d(TAG, "onCreate: " + ex.getMessage());
+        }
+
+        map.put("sign", sign);
+
+        authorizationService.createAccessToken(map);
+    }
+
+    private void getSellerDetails() {
+        //declare params value
+        String appKey = Constant.APP_KEY;
+        String appSecret = Constant.APP_SECRET;
+        String signMethod = Constant.SIGN_METHOD;
+        String accessToken = shopAccount.getAccessToken();
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String sign = "";
+
+        //generate sign for this request
+        Map<String, String> map = new HashMap<>();
+        map.put("app_key", appKey);
+        map.put("access_token", accessToken);
+        map.put("sign_method", signMethod);
+        map.put("timestamp", timestamp);
+
+        try {
+            sign = SignGeneratorUtil.signApiRequest(map, null, appSecret, signMethod, Constant.GET_SELLER_NAME);
+        } catch (Exception ex) {
+            Log.d(TAG, "onCreate: " + ex.getMessage());
+        }
+
+        map.put("sign", sign);
+
+        authorizationService.getSellerDetails(map);
+    }
+
+
 
     private void initRecyclerView() {
         recyclerView.setHasFixedSize(true);
