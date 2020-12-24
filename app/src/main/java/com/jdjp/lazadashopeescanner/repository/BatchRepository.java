@@ -12,7 +12,7 @@ import com.jdjp.lazadashopeescanner.model.pojo.BatchWithExtraProps;
 import java.util.Date;
 import java.util.List;
 
-public class BatchRepository {
+public class BatchRepository  {
     private BatchDao batchDao;
 
     public BatchRepository(Application application) {
@@ -35,7 +35,7 @@ public class BatchRepository {
         return batchDao.getBatchById(batchId);
     }
 
-    public LiveData<List<Batch>> getAllBatches() {
+    public LiveData<List<BatchWithExtraProps>> getAllBatches() {
         return batchDao.getAllBatches();
     }
 }

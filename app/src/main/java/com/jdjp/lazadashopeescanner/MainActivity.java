@@ -4,6 +4,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.content.Intent;
@@ -15,10 +19,17 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.jdjp.lazadashopeescanner.model.pojo.BatchWithExtraProps;
+import com.jdjp.lazadashopeescanner.ui.batch_list.BatchesAdapter;
+import com.jdjp.lazadashopeescanner.ui.batch_list.BatchesViewModel;
 import com.jdjp.lazadashopeescanner.ui.order_list.OrdersActivity;
+import com.jdjp.lazadashopeescanner.ui.order_list.OrdersAdapter;
+import com.jdjp.lazadashopeescanner.ui.order_list.OrdersViewModel;
 import com.jdjp.lazadashopeescanner.ui.scanner.ScannerActivity;
 import com.jdjp.lazadashopeescanner.ui.shop_accounts.ShopAccountListActivity;
 
+import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -29,6 +40,13 @@ public class MainActivity extends AppCompatActivity {
 
     //views
     private Button btnStartScan;
+    private RecyclerView recyclerView;
+    private LinearLayoutManager layoutManager;
+    private BatchesAdapter adapter;
+    private FloatingActionButton fabStartScan;
+
+    //view model
+    private BatchesViewModel viewModel;
 
 
     @Override
@@ -36,11 +54,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //init methods
-        defineActionBar();
-
         //bind views
         btnStartScan = findViewById(R.id.btnStartScan);
+        fabStartScan = findViewById(R.id.fabStartScan);
+        recyclerView = findViewById(R.id.recyclerView);
+
+        //init methods
+        defineActionBar();
+        initRecyclerView();
+
 
         //init event
         btnStartScan.setOnClickListener(new View.OnClickListener() {
@@ -52,6 +74,30 @@ public class MainActivity extends AppCompatActivity {
                     ActivityCompat.requestPermissions(MainActivity.this, new
                             String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
                 }
+            }
+        });
+
+        fabStartScan.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    openScannerActivity();
+                } else {
+                    ActivityCompat.requestPermissions(MainActivity.this, new
+                            String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+                }
+            }
+        });
+
+        //view model
+        viewModel = new ViewModelProvider(this,
+                ViewModelProvider.AndroidViewModelFactory.getInstance(this.getApplication()))
+                .get(BatchesViewModel.class);
+
+        viewModel.getAllBatches().observe(this, new Observer<List<BatchWithExtraProps>>() {
+            @Override
+            public void onChanged(List<BatchWithExtraProps> batchWithExtraProps) {
+                adapter.setBatches(batchWithExtraProps);
             }
         });
     }
@@ -87,6 +133,26 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("batchId", data.getIntExtra("batchId", 0));
             startActivity(intent);
         }
+    }
+
+    private void initRecyclerView() {
+        recyclerView.setHasFixedSize(true);
+
+        layoutManager = new LinearLayoutManager(this);
+        recyclerView.setLayoutManager(layoutManager);
+
+        adapter = new BatchesAdapter(this);
+
+        adapter.setOnItemBatchClickedListener(new BatchesAdapter.OnItemBatchClicked() {
+            @Override
+            public void onItemBatchClicked(BatchWithExtraProps batchWithExtraProps) {
+                Intent intent = new Intent(MainActivity.this, OrdersActivity.class);
+                intent.putExtra("batchId", batchWithExtraProps.getBatch().getBatchId());
+                startActivity(intent);
+            }
+        });
+
+        recyclerView.setAdapter(adapter);
     }
 
     private void openScannerActivity() {

@@ -73,6 +73,7 @@ public class OrdersAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         private View rootView;
         private TextView tvOrderNumber;
         private TextView tvStatus;
+        private TextView tvStoreName;
 
 
         OrderViewHolder(View v) {
@@ -80,6 +81,7 @@ public class OrdersAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             rootView = v;
             tvOrderNumber = v.findViewById(R.id.tvOrderNumber);
             tvStatus = v.findViewById(R.id.tvStatus);
+            tvStoreName = v.findViewById(R.id.tvStoreName);
 
             initEvents();
         }
@@ -118,6 +120,7 @@ public class OrdersAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
             tvStatus.setText(text);
             tvStatus.setTextColor(textColor);
+            tvStoreName.setText(order.getStoreName());
 
         }
 

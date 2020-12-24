@@ -20,6 +20,6 @@ public interface BatchDao {
     LiveData<BatchWithExtraProps> getBatchById(int batchId);
 
 
-    @Query("SELECT * FROM batches ORDER BY createdAt DESC")
-    LiveData<List<Batch>> getAllBatches();
+    @Query("SELECT batches.*, (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId) AS 'scanCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status = 'ready_to_ship') AS 'readyToShipCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status = 'canceled') AS 'canceledCount' FROM batches ORDER BY createdAt DESC")
+    LiveData<List<BatchWithExtraProps>> getAllBatches();
 }

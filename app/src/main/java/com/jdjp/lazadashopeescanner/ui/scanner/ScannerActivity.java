@@ -37,6 +37,7 @@ import com.google.android.gms.vision.barcode.BarcodeDetector;
 import com.jdjp.lazadashopeescanner.R;
 import com.jdjp.lazadashopeescanner.model.Batch;
 import com.jdjp.lazadashopeescanner.model.Order;
+import com.jdjp.lazadashopeescanner.model.OrderItem;
 import com.jdjp.lazadashopeescanner.model.ShopAccount;
 import com.jdjp.lazadashopeescanner.model.pojo.BatchWithExtraProps;
 import com.jdjp.lazadashopeescanner.services.OrderService;
@@ -47,6 +48,10 @@ import com.jdjp.lazadashopeescanner.util.SignGeneratorUtil;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +63,7 @@ public class ScannerActivity extends AppCompatActivity {
 
     private BarcodeDetector barcodeDetector;
     private CameraSource cameraSource;
-    private static final int DELAY = 2500;
+    private static final int DELAY = 1000;
     //This class provides methods to play DTMF tones
     private ToneGenerator toneGen1;
     private ToneGenerator toneGen2;
@@ -291,6 +296,7 @@ public class ScannerActivity extends AppCompatActivity {
                     }
 
                     order.setBatchId(batch.getBatchId());
+                    order.setStoreName(selectedShopAccount.getName());
                     viewModel.insertOrder(order);
                 } catch (Exception ex) {
                     Log.e(TAG, "onOrderFetchedResponse: " + ex.getMessage(), ex);
@@ -313,7 +319,9 @@ public class ScannerActivity extends AppCompatActivity {
                 Log.d(TAG, "onOrderItemsFetchedResponse: " + response);
 
                 try {
-
+                    List<OrderItem> orderItems = OrderService.parseOrderItems(response);
+                    updateOrderReadyToShip(orderItems);
+                    Log.d(TAG, "onOrderItemsFetchedResponse: " + orderItems.get(0).toString());
                 } catch (Exception ex) {
                     Log.d(TAG, "onOrderItemsFetchedResponse: " + ex.getMessage());
                 }
@@ -322,6 +330,25 @@ public class ScannerActivity extends AppCompatActivity {
             @Override
             public void onOrderItemsFetchedErrorResponse(VolleyError error) {
                 Log.e(TAG, "onOrderItemsFetchedErrorResponse: " + error.getMessage(), error);
+            }
+        });
+
+        orderService.setOnOrderUpdatedReadyToShipListener(new OrderService.OnOrderUpdatedReadyToShip() {
+            @Override
+            public void onOrderUpdatedReadyToShipResponse(JSONObject response) {
+                Log.d(TAG, "onOrderUpdatedReadyToShipResponse: " + response);
+
+                try {
+                    fetchOrder(order.getOrderNumber());
+                } catch (Exception ex) {
+                    Log.e(TAG, "onOrderUpdatedReadyToShipResponse: " + ex.getMessage(), ex);
+                }
+
+            }
+
+            @Override
+            public void onOrderUpdatedReadyToShipErrorResponse(VolleyError error) {
+                Log.e(TAG, "onOrderUpdatedReadyToShipErrorResponse: " + error.getMessage(), error);
             }
         });
     }
@@ -502,6 +529,67 @@ public class ScannerActivity extends AppCompatActivity {
 
         // request to api
         orderService.fetchOrderItems(map);
+    }
+
+    private void updateOrderReadyToShip(List<OrderItem> orderItems) {
+        //define variables
+        OrderItem orderItem = orderItems.get(0);
+
+        String deliveryType = orderItem.getDeliveryType();
+        String trackingNumber = orderItem.getTrackingCode();
+        String shipmentProvider = orderItem.getShipmentProvider();
+        String appKey = Constant.APP_KEY;
+        String signMethod = Constant.SIGN_METHOD;
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String accessToken = selectedShopAccount.getAccessToken();
+
+        String[] ids = new String[orderItems.size()];
+
+        for (int i = 0 ; i < orderItems.size(); i++) {
+            ids[i] = orderItems.get(i).getOrderItemId();
+        }
+
+        String orderItemIds = Arrays.toString(ids);
+//        String orderItemIdsEncoded = "";
+//
+//        try {
+//            orderItemIdsEncoded = URLEncoder.encode(orderItemIds, StandardCharsets.UTF_8.toString());
+//        } catch (UnsupportedEncodingException e) {
+//            e.printStackTrace();
+//        }
+        if(trackingNumber.equals("") || trackingNumber.isEmpty() || trackingNumber == null) {
+            trackingNumber = "12345678";
+        }
+
+        if(shipmentProvider.equals("") || shipmentProvider.isEmpty() || shipmentProvider == null) {
+            shipmentProvider = "Aramax";
+        }
+
+
+        String sign = "";
+
+        // generate sign for this request
+        Map map = new HashMap<>();
+        map.put("delivery_type",  deliveryType);
+        map.put("tracking_number",  trackingNumber);
+        map.put("shipment_provider",  shipmentProvider);
+        map.put("order_item_ids",  orderItemIds);
+        map.put("app_key",  appKey);
+        map.put("sign_method",  signMethod);
+        map.put("timestamp",  timestamp);
+        map.put("access_token",  accessToken);
+
+
+        try {
+            sign = SignGeneratorUtil.signApiRequest(map, null,Constant.APP_SECRET, Constant.SIGN_METHOD, Constant.UPDATE_ORDER_RTS_NAME);
+        } catch (Exception ex) {
+            Log.d(TAG, "run: " + ex.getMessage());
+        }
+
+        map.put("sign", sign);
+
+        // request to api
+        orderService.updateOrderReadyToShip(map);
     }
 
     private void displayData(Order order) {
