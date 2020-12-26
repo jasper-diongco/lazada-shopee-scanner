@@ -16,6 +16,9 @@ public interface OrderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(Order order);
 
+    @Query("SELECT * FROM orders WHERE orderNumber = :orderNumber AND batchId = :batchId LIMIT 1")
+    LiveData<Order> findOrder(String orderNumber, int batchId);
+
     @Query("SELECT * FROM orders WHERE batchId = :batchId")
     LiveData<List<Order>> getAllOrdersByBatchId(int batchId);
 }

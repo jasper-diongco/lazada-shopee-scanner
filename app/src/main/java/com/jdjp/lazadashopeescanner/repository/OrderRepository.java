@@ -23,6 +23,10 @@ public class OrderRepository {
         return orderDao.getAllOrdersByBatchId(batchId);
     }
 
+    public LiveData<Order> findOrder(String orderNumber, int batchId) {
+        return orderDao.findOrder(orderNumber, batchId);
+    }
+
     public void insert(Order order) {
         new Thread(new Runnable() {
             @Override

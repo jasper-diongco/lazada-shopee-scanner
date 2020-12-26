@@ -37,6 +37,14 @@ public class ScannerViewModel extends AndroidViewModel {
         orderRepository.insert(order);
     }
 
+    LiveData<List<Order>> getAllOrdersByBatchId(int batchId) {
+        return orderRepository.getAllOrdersByBatchId(batchId);
+    }
+
+    public LiveData<Order> findOrder(String orderNumber, int batchId) {
+     return  orderRepository.findOrder(orderNumber, batchId);
+    }
+
     public LiveData<List<ShopAccount>> getAllShopAccounts() {
         return shopAccountRepository.getAllShopAccounts();
     }

@@ -17,6 +17,7 @@ import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.SparseArray;
+import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -34,6 +35,10 @@ import com.google.android.gms.vision.CameraSource;
 import com.google.android.gms.vision.Detector;
 import com.google.android.gms.vision.barcode.Barcode;
 import com.google.android.gms.vision.barcode.BarcodeDetector;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.DecodeHintType;
+import com.google.zxing.ResultPoint;
+import com.google.zxing.client.android.BeepManager;
 import com.jdjp.lazadashopeescanner.R;
 import com.jdjp.lazadashopeescanner.model.Batch;
 import com.jdjp.lazadashopeescanner.model.Order;
@@ -44,6 +49,10 @@ import com.jdjp.lazadashopeescanner.services.OrderService;
 import com.jdjp.lazadashopeescanner.ui.order_list.OrdersActivity;
 import com.jdjp.lazadashopeescanner.util.Constant;
 import com.jdjp.lazadashopeescanner.util.SignGeneratorUtil;
+import com.journeyapps.barcodescanner.BarcodeCallback;
+import com.journeyapps.barcodescanner.BarcodeResult;
+import com.journeyapps.barcodescanner.DecoratedBarcodeView;
+import com.journeyapps.barcodescanner.DefaultDecoderFactory;
 
 import org.json.JSONObject;
 
@@ -51,7 +60,9 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +111,44 @@ public class ScannerActivity extends AppCompatActivity {
     private Order order;
     private boolean listeningToBatch;
     private int tryAccountCount = 0;
+    private List<Order> orders = new ArrayList<>();
+
+    private DecoratedBarcodeView barcodeView;
+    private BeepManager beepManager;
+
+    private BarcodeCallback callback = new BarcodeCallback() {
+        @Override
+        public void barcodeResult(BarcodeResult result) {
+
+            if(System.currentTimeMillis() - lastTimestamp <= DELAY) {
+                // Too soon after the last barcode - ignore.
+                return;
+            }
+
+            lastTimestamp = System.currentTimeMillis();
+
+            barcodeView.setStatusText(result.getText());
+
+
+
+            barcodeData = result.getText();
+
+            boolean isDuplicate = checkIfDuplicate(barcodeData);
+
+            if(isDuplicate) {
+                toneGen1.startTone(ToneGenerator.TONE_SUP_ERROR, 150);
+            } else {
+                beepManager.playBeepSoundAndVibrate();
+            }
+
+
+            fetchOrder(barcodeData);
+        }
+
+        @Override
+        public void possibleResultPoints(List<ResultPoint> resultPoints) {
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,6 +159,7 @@ public class ScannerActivity extends AppCompatActivity {
         //init tone for scanner
         toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC,100);
         toneGen2 = new ToneGenerator(AudioManager.STREAM_RING,100);
+        lastTimestamp = System.currentTimeMillis();
 
         //bind views
         surfaceView = findViewById(R.id.surface_view);
@@ -125,9 +175,11 @@ public class ScannerActivity extends AppCompatActivity {
         tvStartScanning = findViewById(R.id.tvStartScanning);
         tvBatchScanIndicator = findViewById(R.id.tvBatchScanIndicator);
         btnStop = findViewById(R.id.btnStop);
+        barcodeView = findViewById(R.id.barcodeView);
 
         // init methods
-        initialiseDetectorsAndSources();
+        //initialiseDetectorsAndSources();
+        initBarcodeScanner();
         defineActionBar();
         initOrderService();
         setBatchScanOngoing(false);
@@ -221,6 +273,46 @@ public class ScannerActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        barcodeView.resume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        barcodeView.pause();
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        return barcodeView.onKeyDown(keyCode, event) || super.onKeyDown(keyCode, event);
+    }
+
+    private boolean checkIfDuplicate(String barcodeData) {
+
+        for (int i = 0 ; i < orders.size(); i++) {
+            if(orders.get(i).getOrderNumber().equals(barcodeData)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void initBarcodeScanner() {
+        Collection<BarcodeFormat> formats = Arrays.asList(BarcodeFormat.QR_CODE, BarcodeFormat.CODE_39);
+        Map<DecodeHintType, Object> map = new HashMap<DecodeHintType, Object>();
+        barcodeView.getBarcodeView().setDecoderFactory(new DefaultDecoderFactory(formats, map, "utf-8"));
+        barcodeView.initializeFromIntent(getIntent());
+        barcodeView.decodeContinuous(callback);
+
+        beepManager = new BeepManager(this);
+    }
+
     private void askForExit() {
         new AlertDialog.Builder(ScannerActivity.this)
                 .setTitle("Exit Scanner")
@@ -292,11 +384,19 @@ public class ScannerActivity extends AppCompatActivity {
                             }
                         });
 
+                        viewModel.getAllOrdersByBatchId(batch.getBatchId()).observe(ScannerActivity.this, new Observer<List<Order>>() {
+                            @Override
+                            public void onChanged(List<Order> _orders) {
+                                orders = _orders;
+                            }
+                        });
+
                         listeningToBatch = true;
                     }
 
                     order.setBatchId(batch.getBatchId());
                     order.setStoreName(selectedShopAccount.getName());
+
                     viewModel.insertOrder(order);
                 } catch (Exception ex) {
                     Log.e(TAG, "onOrderFetchedResponse: " + ex.getMessage(), ex);
@@ -634,14 +734,14 @@ public class ScannerActivity extends AppCompatActivity {
         }
 
         tvStatuses.setVisibility(!show ? View.VISIBLE : View.GONE);
-        barcodeText.setVisibility(!show ? View.VISIBLE : View.GONE);
+//        barcodeText.setVisibility(!show ? View.VISIBLE : View.GONE);
         btnReadyToShip.setVisibility(!show ? View.VISIBLE : View.GONE);
     }
 
     private void showErrorText(String text) {
         progressBarFetchingOrder.setVisibility(View.GONE);
         tvStatuses.setVisibility(View.VISIBLE);
-        barcodeText.setVisibility(View.VISIBLE);
+//        barcodeText.setVisibility(View.VISIBLE);
         btnReadyToShip.setVisibility(View.GONE);
         tvStatuses.setTextColor(getResources().getColor(R.color.red));
 

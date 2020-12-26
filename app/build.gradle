@@ -67,4 +67,7 @@ dependencies {
     // Room
     implementation "androidx.room:room-runtime:$room_version"
     annotationProcessor "androidx.room:room-compiler:$room_version"
+
+    //scanner
+    implementation 'com.journeyapps:zxing-android-embedded:3.4.0'
 }

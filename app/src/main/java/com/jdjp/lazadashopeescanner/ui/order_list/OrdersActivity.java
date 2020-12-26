@@ -7,13 +7,17 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.TextView;
 
 import com.jdjp.lazadashopeescanner.R;
 import com.jdjp.lazadashopeescanner.model.Order;
 import com.jdjp.lazadashopeescanner.model.pojo.BatchWithExtraProps;
+import com.jdjp.lazadashopeescanner.ui.shop_accounts.ShopAccountListActivity;
 
 
 import java.util.List;
@@ -79,10 +83,21 @@ public class OrdersActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if(item.getItemId() == android.R.id.home) {
             finish();
+        } else if (item.getItemId() == R.id.menu_item_export) {
+            exportCSV();
         }
 
         return super.onOptionsItemSelected(item);
     }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.orders_menu, menu);
+
+        return super.onCreateOptionsMenu(menu);
+    }
+
 
     private void displaySummary(BatchWithExtraProps batchWithExtraProps) {
         tvTotalScan.setText(String.valueOf(batchWithExtraProps.getScanCount()));
@@ -99,6 +114,10 @@ public class OrdersActivity extends AppCompatActivity {
         adapter = new OrdersAdapter(this);
 
         recyclerView.setAdapter(adapter);
+    }
+
+    private void exportCSV() {
+
     }
 
     private void getIntentValues() {
