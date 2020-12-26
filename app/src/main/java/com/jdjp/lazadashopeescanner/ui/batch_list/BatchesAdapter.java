@@ -13,6 +13,7 @@ import com.jdjp.lazadashopeescanner.R;
 import com.jdjp.lazadashopeescanner.model.pojo.BatchWithExtraProps;
 
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -91,7 +92,12 @@ public class BatchesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
 
             public void bind(BatchWithExtraProps batch) {
-                tvBatchNumber.setText("Batch ID: " + batch.getBatch().getBatchId());
+
+                String pattern = "MM-dd-yyyy";
+                SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+                String date = simpleDateFormat.format(batch.getBatch().getCreatedAt());
+
+                tvBatchNumber.setText("Batch ID: " + batch.getBatch().getBatchId() + " | " + date);
                 tvParcelsCount.setText("Total Parcels: " + batch.getScanCount());
 
             }
