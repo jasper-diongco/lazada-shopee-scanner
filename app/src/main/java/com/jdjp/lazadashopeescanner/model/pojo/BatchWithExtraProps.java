@@ -44,6 +44,7 @@ public class BatchWithExtraProps {
         this.canceledCount = canceledCount;
     }
 
+
     @Override
     public String toString() {
         return "BatchWithExtraProps{" +

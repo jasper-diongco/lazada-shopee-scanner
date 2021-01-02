@@ -31,6 +31,15 @@ public class BatchRepository  {
         }).start();
     }
 
+    public void delete(Batch batch) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                batchDao.delete(batch);
+            }
+        }).start();
+    }
+
     public LiveData<BatchWithExtraProps> getBatchById(int batchId) {
         return batchDao.getBatchById(batchId);
     }

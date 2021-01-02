@@ -74,7 +74,7 @@ public class ScannerActivity extends AppCompatActivity {
 
     private BarcodeDetector barcodeDetector;
     private CameraSource cameraSource;
-    private static final int DELAY = 1000;
+    private static final int DELAY = 1200;
     //This class provides methods to play DTMF tones
     private ToneGenerator toneGen1;
     private ToneGenerator toneGen2;
@@ -419,7 +419,7 @@ public class ScannerActivity extends AppCompatActivity {
                 Log.d(TAG, "onOrderItemsFetchedResponse: " + response);
 
                 try {
-                    List<OrderItem> orderItems = OrderService.parseOrderItems(response);
+                    List<OrderItem> orderItems = OrderService.parseOrderItems(response.getJSONArray("data"));
                     updateOrderReadyToShip(orderItems);
                     Log.d(TAG, "onOrderItemsFetchedResponse: " + orderItems.get(0).toString());
                 } catch (Exception ex) {
@@ -721,7 +721,7 @@ public class ScannerActivity extends AppCompatActivity {
         }
 
         tvStatuses.setText(status);
-
+        barcodeText.setText(barcodeData);
         btnReadyToShip.setVisibility(order.getStatus().contains("pending") ? View.VISIBLE : View.GONE);
     }
 
@@ -734,14 +734,14 @@ public class ScannerActivity extends AppCompatActivity {
         }
 
         tvStatuses.setVisibility(!show ? View.VISIBLE : View.GONE);
-//        barcodeText.setVisibility(!show ? View.VISIBLE : View.GONE);
+        barcodeText.setVisibility(!show ? View.VISIBLE : View.GONE);
         btnReadyToShip.setVisibility(!show ? View.VISIBLE : View.GONE);
     }
 
     private void showErrorText(String text) {
         progressBarFetchingOrder.setVisibility(View.GONE);
         tvStatuses.setVisibility(View.VISIBLE);
-//        barcodeText.setVisibility(View.VISIBLE);
+        barcodeText.setVisibility(View.VISIBLE);
         btnReadyToShip.setVisibility(View.GONE);
         tvStatuses.setTextColor(getResources().getColor(R.color.red));
 

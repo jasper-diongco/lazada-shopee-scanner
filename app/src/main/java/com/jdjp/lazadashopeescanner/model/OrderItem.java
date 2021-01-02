@@ -5,6 +5,7 @@ public class OrderItem {
     private String trackingCode;
     private String shipmentProvider;
     private String deliveryType;
+    private String status;
 
     public String getOrderItemId() {
         return orderItemId;
@@ -36,6 +37,14 @@ public class OrderItem {
 
     public void setDeliveryType(String deliveryType) {
         this.deliveryType = deliveryType;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     @Override

@@ -26,8 +26,8 @@ public class Order {
 //    private int itemsCount;
     @NonNull
     private String status;
-//    @NonNull
-//    private String createdAt;
+    @NonNull
+    private long fetchedAt;
 //    @NonNull
 //    private String updatedAt;
 
@@ -140,11 +140,21 @@ public class Order {
         this.storeName = storeName;
     }
 
+    public long getFetchedAt() {
+        return fetchedAt;
+    }
+
+    public void setFetchedAt(long fetchedAt) {
+        this.fetchedAt = fetchedAt;
+    }
+
     @Override
     public String toString() {
         return "Order{" +
                 "orderNumber='" + orderNumber + '\'' +
                 ", batchId=" + batchId +
+                ", status='" + status + '\'' +
+                ", fetchedAt=" + fetchedAt +
                 ", storeName='" + storeName + '\'' +
                 '}';
     }

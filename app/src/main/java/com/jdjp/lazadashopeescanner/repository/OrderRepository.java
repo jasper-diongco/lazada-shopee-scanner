@@ -7,7 +7,9 @@ import androidx.lifecycle.LiveData;
 import com.jdjp.lazadashopeescanner.AppDatabase;
 import com.jdjp.lazadashopeescanner.dao.OrderDao;
 import com.jdjp.lazadashopeescanner.model.Order;
+import com.jdjp.lazadashopeescanner.model.pojo.StoreWithOrders;
 
+import java.util.Date;
 import java.util.List;
 
 
@@ -27,10 +29,19 @@ public class OrderRepository {
         return orderDao.findOrder(orderNumber, batchId);
     }
 
+    public LiveData<List<StoreWithOrders>> getAllStoreWithOrders(int batchId) {
+        return orderDao.getAllStoreWithOrders();
+    }
+
+    public LiveData<List<Order>> getAllOrders(int batchId, String storeName) {
+        return orderDao.getAllOrders(batchId, storeName);
+    }
+
     public void insert(Order order) {
         new Thread(new Runnable() {
             @Override
             public void run() {
+                order.setFetchedAt(new Date().getTime());
                 orderDao.insert(order);
             }
         }).start();

@@ -6,9 +6,11 @@ import androidx.room.Delete;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
+import androidx.room.Transaction;
 import androidx.room.Update;
 
 import com.jdjp.lazadashopeescanner.model.ShopAccount;
+import com.jdjp.lazadashopeescanner.model.pojo.StoreWithOrders;
 
 import java.util.List;
 
@@ -22,5 +24,7 @@ public interface ShopAccountDao {
 
     @Query("SELECT * FROM shop_accounts ORDER BY createdAt DESC")
     LiveData<List<ShopAccount>> getAllShopAccounts();
+
+
 
 }

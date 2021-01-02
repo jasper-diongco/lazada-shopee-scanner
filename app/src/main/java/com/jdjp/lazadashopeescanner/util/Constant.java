@@ -17,4 +17,6 @@ public class Constant {
     public static final String DELIVERY_TYPE_DROP_SHIP = "dropship";
     public static final String UPDATE_ORDER_RTS_URL = "https://api.lazada.com.ph/rest/order/rts";
     public static final String UPDATE_ORDER_RTS_NAME = "/order/rts";
+    public static final String GET_MULTIPLE_ORDER_ITEMS_NAME = "/orders/items/get";
+    public static final String GET_MULTIPLE_ORDER_ITEMS_URL = "https://api.lazada.com.ph/rest/orders/items/get";
 }

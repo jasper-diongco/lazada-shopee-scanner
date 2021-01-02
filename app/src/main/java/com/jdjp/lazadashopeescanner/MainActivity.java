@@ -2,6 +2,7 @@ package com.jdjp.lazadashopeescanner;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.Observer;
@@ -10,6 +11,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -149,6 +151,21 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(MainActivity.this, OrdersActivity.class);
                 intent.putExtra("batchId", batchWithExtraProps.getBatch().getBatchId());
                 startActivity(intent);
+            }
+        });
+
+        adapter.setOnButtonDeleteClickedListener(new BatchesAdapter.OnButtonDeleteClicked() {
+            @Override
+            public void onButtonDeleteClicked(BatchWithExtraProps batchWithExtraProps) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Delete Batch")
+                        .setMessage("Do you want to delete batch " + batchWithExtraProps.getBatch().getBatchId() + "?")
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+
+                            public void onClick(DialogInterface dialog, int whichButton) {
+                                viewModel.deleteBatch(batchWithExtraProps.getBatch());
+                            }})
+                        .setNegativeButton(android.R.string.no, null).show();
             }
         });
 

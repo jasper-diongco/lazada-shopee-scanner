@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -25,6 +26,7 @@ public class BatchesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         private List<BatchWithExtraProps> batches = new ArrayList<>();
         private Context context;
         private OnItemBatchClicked onItemBatchClickedListener;
+        private OnButtonDeleteClicked onButtonDeleteClickedListener;
 
         public BatchesAdapter(Context context) {
             this.context = context;
@@ -32,6 +34,10 @@ public class BatchesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
     public void setOnItemBatchClickedListener(OnItemBatchClicked onItemBatchClickedListener) {
         this.onItemBatchClickedListener = onItemBatchClickedListener;
+    }
+
+    public void setOnButtonDeleteClickedListener(OnButtonDeleteClicked onButtonDeleteClickedListener) {
+        this.onButtonDeleteClickedListener = onButtonDeleteClickedListener;
     }
 
     public void setBatches(List<BatchWithExtraProps> batches) {
@@ -80,6 +86,7 @@ public class BatchesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             private View rootView;
             private TextView tvBatchNumber;
             private TextView tvParcelsCount;
+            private Button btnDelete;
 
 
             BatchViewHolder(View v) {
@@ -87,6 +94,7 @@ public class BatchesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 rootView = v;
                 tvBatchNumber = v.findViewById(R.id.tvBatchNumber);
                 tvParcelsCount = v.findViewById(R.id.tvParcelsCount);
+                btnDelete = v.findViewById(R.id.btnDelete);
 
                 initEvents();
             }
@@ -109,10 +117,21 @@ public class BatchesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                         onItemBatchClickedListener.onItemBatchClicked(batches.get(getLayoutPosition()));
                     }
                 });
+
+                btnDelete.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        onButtonDeleteClickedListener.onButtonDeleteClicked(batches.get(getLayoutPosition()));
+                    }
+                });
             }
         }
 
         public interface OnItemBatchClicked {
             void onItemBatchClicked(BatchWithExtraProps batchWithExtraProps);
         }
+
+    public interface OnButtonDeleteClicked {
+        void onButtonDeleteClicked(BatchWithExtraProps batchWithExtraProps);
+    }
 }

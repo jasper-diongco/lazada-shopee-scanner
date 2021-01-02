@@ -28,6 +28,7 @@ public class OrderService {
     private OnOrderFetched onOrderFetchedListener;
     private OnOrderItemsFetched onOrderItemsFetchedListener;
     public OnOrderUpdatedReadyToShip onOrderUpdatedReadyToShipListener;
+    private OnFetchMultipleOrderItems onFetchMultipleOrderItemsListener;
 
     public OrderService(Context context) {
         this.context = context;
@@ -78,6 +79,36 @@ public class OrderService {
             @Override
             public void onErrorResponse(VolleyError error) {
                 onOrderItemsFetchedListener.onOrderItemsFetchedErrorResponse(error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String>  params = new HashMap<String, String>();
+                params.put("Content-Type", "application/json");
+                params.put("Accept", "application/json");
+                params.put("X-Requested-With", "XMLHttpRequest");
+                return params;
+            }
+        };
+
+        requestQueue.add(jsonobj);
+    }
+
+    public void fetchMultipleOrderItems(Map<String, String> params) {
+        RequestQueue requestQueue = MyRequestQueue.getInstance(context).getRequestQueue();
+
+        //request
+        JsonObjectRequest jsonobj = new JsonObjectRequest(Request.Method.GET,
+                Constant.GET_MULTIPLE_ORDER_ITEMS_URL + "?order_ids="+ params.get("order_ids") +"&app_key=" + params.get("app_key") + "&sign_method=" + params.get("sign_method") + "&timestamp=" + params.get("timestamp") + "&access_token=" + params.get("access_token") + "&sign=" + params.get("sign"),
+                null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                onFetchMultipleOrderItemsListener.onFetchMultipleOrderItemsResponse(response);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                onFetchMultipleOrderItemsListener.onFetchMultipleOrderItemsErrorResponse(error);
             }
         }) {
             @Override
@@ -167,6 +198,7 @@ public class OrderService {
             orderItem.setOrderItemId(jsonObject.getString("order_item_id"));
             orderItem.setTrackingCode(jsonObject.getString("tracking_code"));
             orderItem.setShipmentProvider(jsonObject.getString("shipment_provider"));
+            orderItem.setStatus(jsonObject.getString("status"));
             orderItem.setDeliveryType(Constant.DELIVERY_TYPE_DROP_SHIP);
         } catch (Exception ex) {
             Log.e(TAG, "parseOrderItem: " + ex.getMessage(), ex);
@@ -175,11 +207,11 @@ public class OrderService {
         return orderItem;
     }
 
-    public static List<OrderItem> parseOrderItems(JSONObject jsonObject) throws Exception {
+    public static List<OrderItem> parseOrderItems(JSONArray data) throws Exception {
         List<OrderItem> orderItems = new ArrayList<>();
 
         try {
-            JSONArray data = jsonObject.getJSONArray("data");
+//            JSONArray data = jsonObject.getJSONArray("data");
 
             for (int i = 0 ; i < data.length(); i++) {
                 orderItems.add(parseOrderItem(data.getJSONObject(i)));
@@ -203,6 +235,14 @@ public class OrderService {
         this.onOrderUpdatedReadyToShipListener = onOrderUpdatedReadyToShipListener;
     }
 
+    public OnFetchMultipleOrderItems getOnFetchMultipleOrderItemsListener() {
+        return onFetchMultipleOrderItemsListener;
+    }
+
+    public void setOnFetchMultipleOrderItemsListener(OnFetchMultipleOrderItems onFetchMultipleOrderItemsListener) {
+        this.onFetchMultipleOrderItemsListener = onFetchMultipleOrderItemsListener;
+    }
+
     public interface OnOrderFetched {
         void onOrderFetchedResponse(JSONObject response);
         void onOrderFetchedErrorResponse(VolleyError error);
@@ -216,5 +256,9 @@ public class OrderService {
     public interface OnOrderUpdatedReadyToShip {
         void onOrderUpdatedReadyToShipResponse(JSONObject response);
         void onOrderUpdatedReadyToShipErrorResponse(VolleyError error);
+    }
+    public interface OnFetchMultipleOrderItems {
+        void onFetchMultipleOrderItemsResponse(JSONObject response);
+        void onFetchMultipleOrderItemsErrorResponse(VolleyError error);
     }
 }
