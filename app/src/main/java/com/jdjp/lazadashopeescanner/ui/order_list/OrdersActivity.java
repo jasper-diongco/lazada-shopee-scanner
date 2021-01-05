@@ -32,6 +32,7 @@ import com.jdjp.lazadashopeescanner.model.ShopAccount;
 import com.jdjp.lazadashopeescanner.model.pojo.BatchWithExtraProps;
 import com.jdjp.lazadashopeescanner.model.pojo.StoreWithOrders;
 import com.jdjp.lazadashopeescanner.services.OrderService;
+import com.jdjp.lazadashopeescanner.ui.scanner.ScannerActivity;
 import com.jdjp.lazadashopeescanner.util.Constant;
 import com.jdjp.lazadashopeescanner.util.SignGeneratorUtil;
 
@@ -168,6 +169,8 @@ public class OrdersActivity extends AppCompatActivity {
             finish();
         } else if (item.getItemId() == R.id.menu_item_export) {
             exportCSV();
+        } else if (item.getItemId() == R.id.menu_item_continue_scanning) {
+            continueBatchScanning();
         }
 
         return super.onOptionsItemSelected(item);
@@ -314,7 +317,7 @@ public class OrdersActivity extends AppCompatActivity {
                     strStatus += orderItems.get(j).getStatus();
 
                     if (j != orderItems.size() - 1 && orderItems.size() > 1) {
-                        strStatus += ", ";
+                        strStatus += " ";
                     }
                 }
 
@@ -438,6 +441,12 @@ public class OrdersActivity extends AppCompatActivity {
 
 
         return data;
+    }
+
+    private void continueBatchScanning() {
+        Intent intent = new Intent(this, ScannerActivity.class);
+        intent.putExtra("batchId", batchId);
+        startActivity(intent);
     }
 
     private void getIntentValues() {

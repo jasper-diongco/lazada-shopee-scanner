@@ -179,7 +179,7 @@ public class OrderService {
                 strStatus += statuses[i];
 
                 if(i != i - 1 && statusesCount > 1) {
-                    strStatus += ", ";
+                    strStatus += " ";
                 }
             }
 

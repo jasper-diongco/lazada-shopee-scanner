@@ -5,4 +5,9 @@
         android:icon="@drawable/ic_baseline_save_alt_24"
         android:title="Export As CSV"
         app:showAsAction="always"/>
+
+    <item android:id="@+id/menu_item_continue_scanning"
+        android:icon="@drawable/ic_baseline_save_alt_24"
+        android:title="Continue Batch Scanning"
+        />
 </menu>

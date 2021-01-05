@@ -20,6 +20,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.jdjp.lazadashopeescanner.model.pojo.BatchWithExtraProps;
@@ -39,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private static final int REQUEST_CAMERA_PERMISSION = 121;
     private static final int RC_SCAN = 122;
+    private static final int RC_VIEW_BATCH = 123;
 
     //views
     private Button btnStartScan;
@@ -46,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayoutManager layoutManager;
     private BatchesAdapter adapter;
     private FloatingActionButton fabStartScan;
+    private ImageView imageViewNoRecord;
 
     //view model
     private BatchesViewModel viewModel;
@@ -60,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
         btnStartScan = findViewById(R.id.btnStartScan);
         fabStartScan = findViewById(R.id.fabStartScan);
         recyclerView = findViewById(R.id.recyclerView);
+        imageViewNoRecord = findViewById(R.id.imageViewNoRecord);
 
         //init methods
         defineActionBar();
@@ -99,7 +103,16 @@ public class MainActivity extends AppCompatActivity {
         viewModel.getAllBatches().observe(this, new Observer<List<BatchWithExtraProps>>() {
             @Override
             public void onChanged(List<BatchWithExtraProps> batchWithExtraProps) {
-                adapter.setBatches(batchWithExtraProps);
+                if(batchWithExtraProps.size() > 0) {
+                    adapter.setBatches(batchWithExtraProps);
+                    imageViewNoRecord.setVisibility(View.GONE);
+                    recyclerView.setVisibility(View.VISIBLE);
+                } else {
+                    imageViewNoRecord.setVisibility(View.VISIBLE);
+                    recyclerView.setVisibility(View.GONE);
+                }
+
+
             }
         });
     }
@@ -134,6 +147,10 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(MainActivity.this, OrdersActivity.class);
             intent.putExtra("batchId", data.getIntExtra("batchId", 0));
             startActivity(intent);
+        } else if(requestCode == RC_VIEW_BATCH && resultCode == RESULT_OK) {
+            Intent intent = new Intent(MainActivity.this, ScannerActivity.class);
+            intent.putExtra("batchId", data.getIntExtra("batchId", 0));
+            startActivityForResult(intent, RC_SCAN);
         }
     }
 
@@ -150,7 +167,7 @@ public class MainActivity extends AppCompatActivity {
             public void onItemBatchClicked(BatchWithExtraProps batchWithExtraProps) {
                 Intent intent = new Intent(MainActivity.this, OrdersActivity.class);
                 intent.putExtra("batchId", batchWithExtraProps.getBatch().getBatchId());
-                startActivity(intent);
+                startActivityForResult(intent, RC_VIEW_BATCH);
             }
         });
 
