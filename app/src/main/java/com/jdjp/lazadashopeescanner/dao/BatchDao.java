@@ -21,10 +21,10 @@ public interface BatchDao {
     @Delete
     void delete(Batch batch);
 
-    @Query("SELECT batches.*, (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId) AS 'scanCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status = 'ready_to_ship') AS 'readyToShipCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status = 'canceled') AS 'canceledCount' FROM batches WHERE batchId = :batchId")
+    @Query("SELECT batches.*, (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId) AS 'scanCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status LIKE '%ready_to_ship%') AS 'readyToShipCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status LIKE '%canceled%' AND status NOT LIKE '%ready_to_ship%') AS 'canceledCount' FROM batches WHERE batchId = :batchId")
     LiveData<BatchWithExtraProps> getBatchById(int batchId);
 
 
-    @Query("SELECT batches.*, (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId) AS 'scanCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status = 'ready_to_ship') AS 'readyToShipCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status = 'canceled') AS 'canceledCount' FROM batches ORDER BY createdAt DESC")
+    @Query("SELECT batches.*, (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId) AS 'scanCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status LIKE '%ready_to_ship%') AS 'readyToShipCount', (SELECT COUNT(*) FROM orders WHERE batchId = batches.batchId AND status LIKE '%canceled%' AND status NOT LIKE '%ready_to_ship%') AS 'canceledCount' FROM batches ORDER BY createdAt DESC")
     LiveData<List<BatchWithExtraProps>> getAllBatches();
 }

@@ -3,38 +3,25 @@ package com.jdjp.lazadashopeescanner.ui.scanner;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
-import android.Manifest;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.SparseArray;
 import android.view.KeyEvent;
 import android.view.MenuItem;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ProgressBar;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.VolleyError;
-import com.google.android.gms.vision.CameraSource;
-import com.google.android.gms.vision.Detector;
-import com.google.android.gms.vision.barcode.Barcode;
-import com.google.android.gms.vision.barcode.BarcodeDetector;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.ResultPoint;
@@ -55,7 +42,7 @@ import com.journeyapps.barcodescanner.DefaultDecoderFactory;
 
 import org.json.JSONObject;
 
-import java.io.IOException;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -65,26 +52,13 @@ import java.util.Map;
 
 public class ScannerActivity extends AppCompatActivity {
     private static final String TAG = "ScannerActivity";
-    private static final int REQUEST_CAMERA_PERMISSION = 121;
     private static final String STATUS_PENDING = "pending";
-
-
-    private BarcodeDetector barcodeDetector;
-    private CameraSource cameraSource;
-    private static final int DELAY = 2000;
-    //This class provides methods to play DTMF tones
-    private ToneGenerator toneGen1;
-    private ToneGenerator toneGen2;
-
-    private String barcodeData;
-    private long lastTimestamp = 0;
+    private static final int DELAY = 4000;
 
     //services
     private OrderService orderService;
 
     //views
-    private Spinner spinnerAccount;
-    private SurfaceView surfaceView;
     private TextView barcodeText;
     private TextView tvStatuses;
     private TextView tvScanCount;
@@ -95,13 +69,20 @@ public class ScannerActivity extends AppCompatActivity {
     private ProgressBar progressBarFetchingOrder;
     private TextView tvBatchScanIndicator;
     private Button btnStop;
+    private TextView tvStoreName;
+
+    private DecoratedBarcodeView barcodeView;
+
+
+    private BeepManager beepManager;
+    private ToneGenerator toneError;
+    private ToneGenerator toneStartScan;
 
     //view models
     private ScannerViewModel viewModel;
 
     //data
     private List<ShopAccount> shopAccounts;
-    private ShopAccount selectedShopAccount;
     private int selectedShopAccountIndex;
     private Batch batch;
     private Order order;
@@ -110,9 +91,10 @@ public class ScannerActivity extends AppCompatActivity {
     private List<Order> orders = new ArrayList<>();
     private String lastAutomaticUpdate;
     private boolean isScannerBusy = false;
+    private String barcodeData;
+    private long lastTimestamp = 0;
 
-    private DecoratedBarcodeView barcodeView;
-    private BeepManager beepManager;
+
 
     private BarcodeCallback callback = new BarcodeCallback() {
         @Override
@@ -134,7 +116,7 @@ public class ScannerActivity extends AppCompatActivity {
             boolean isDuplicate = checkIfDuplicate(barcodeData);
 
             if(isDuplicate) {
-                toneGen1.startTone(ToneGenerator.TONE_SUP_ERROR, 150);
+                toneError.startTone(ToneGenerator.TONE_SUP_ERROR, 150);
             } else {
                 beepManager.playBeepSoundAndVibrate();
             }
@@ -158,14 +140,12 @@ public class ScannerActivity extends AppCompatActivity {
 
 
         //init tone for scanner
-        toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC,100);
-        toneGen2 = new ToneGenerator(AudioManager.STREAM_RING,100);
+        toneError = new ToneGenerator(AudioManager.STREAM_MUSIC,100);
+        toneStartScan = new ToneGenerator(AudioManager.STREAM_RING,100);
         lastTimestamp = System.currentTimeMillis();
 
         //bind views
-        surfaceView = findViewById(R.id.surface_view);
         barcodeText = findViewById(R.id.barcode_text);
-        spinnerAccount = findViewById(R.id.spinnerAccount);
         tvStatuses = findViewById(R.id.tvStatuses);
         btnStartBatchScan = findViewById(R.id.btnStartBatchScan);
         btnReadyToShip = findViewById(R.id.btnReadyToShip);
@@ -176,6 +156,7 @@ public class ScannerActivity extends AppCompatActivity {
         tvBatchScanIndicator = findViewById(R.id.tvBatchScanIndicator);
         btnStop = findViewById(R.id.btnStop);
         barcodeView = findViewById(R.id.barcodeView);
+        tvStoreName = findViewById(R.id.tvStoreName);
 
         // init methods
         initBarcodeScanner();
@@ -199,7 +180,6 @@ public class ScannerActivity extends AppCompatActivity {
                 }
 
                 shopAccounts = _shopAccounts;
-                initSpinnerAccount();
             }
         });
 
@@ -216,7 +196,7 @@ public class ScannerActivity extends AppCompatActivity {
                 viewModel.insertBatch(batch);
 
                 setBatchScanOngoing(true);
-                toneGen2.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 150);
+                toneStartScan.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 150);
             }
         });
 
@@ -229,6 +209,7 @@ public class ScannerActivity extends AppCompatActivity {
                         .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
 
                             public void onClick(DialogInterface dialog, int whichButton) {
+                                isScannerBusy = true;
                                 fetchOrderItemsForStatusUpdate();
                             }})
                         .setNegativeButton(android.R.string.no, null).show();
@@ -305,294 +286,15 @@ public class ScannerActivity extends AppCompatActivity {
         return barcodeView.onKeyDown(keyCode, event) || super.onKeyDown(keyCode, event);
     }
 
-    private boolean checkIfDuplicate(String barcodeData) {
 
-        for (int i = 0 ; i < orders.size(); i++) {
-            if(orders.get(i).getOrderNumber().equals(barcodeData)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void initBarcodeScanner() {
-        Collection<BarcodeFormat> formats = Arrays.asList(BarcodeFormat.QR_CODE, BarcodeFormat.CODE_39);
-        Map<DecodeHintType, Object> map = new HashMap<DecodeHintType, Object>();
-        barcodeView.getBarcodeView().setDecoderFactory(new DefaultDecoderFactory(formats, map, "utf-8"));
-        barcodeView.initializeFromIntent(getIntent());
-        barcodeView.decodeContinuous(callback);
-
-        beepManager = new BeepManager(this);
-    }
-
-    private void askForExit() {
-        new AlertDialog.Builder(ScannerActivity.this)
-                .setTitle("Exit Scanner")
-                .setMessage("Batch Scan Is Ongoing. Do You Want To Exit?")
-                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-
-                    public void onClick(DialogInterface dialog, int whichButton) {
-                        finish();
-                    }})
-                .setNegativeButton(android.R.string.no, null).show();
-
-    }
-
-    private void initOrderService() {
-        orderService = new OrderService(this);
-
-        orderService.setOnOrderFetchedListener(new OrderService.OnOrderFetched() {
-            @Override
-            public void onOrderFetchedResponse(JSONObject response) {
-                Log.d(TAG, "onOrderFetchedResponse: " + response);
-                showProgressBarFetchingOrder(false);
-
-                try {
-                    String code = response.getString("code");
-
-                    if(code.equals("16")) {
-                        //switch account
-                        selectedShopAccountIndex++;
-
-                        if(selectedShopAccountIndex == shopAccounts.size()) {
-                            selectedShopAccountIndex = 0;
-                        }
-
-                        spinnerAccount.setSelection(selectedShopAccountIndex);
-
-
-
-                        if(tryAccountCount == shopAccounts.size()) {
-                            //invalid code, try again
-                            showErrorText("TRY AGAIN");
-                            return;
-                        }
-
-                        tryAccountCount++;
-
-                        //try again with another account
-                        fetchOrder(barcodeData);
-                        return;
-                    } else if (code.equals("InvalidParameter") || code.equals("MISSING_PARAMETER")) {
-                        //invalid barcode
-                        showErrorText("ERROR. INVALID BARCODE");
-                        return;
-                    }
-
-                    //reset try account count
-                    tryAccountCount = 0;
-
-                    order = OrderService.parseOrder(response);
-
-                    displayData(order);
-
-                    // update to ready to ship if pending
-                    if(order.getStatus().contains(STATUS_PENDING) && !order.getOrderNumber().equals(lastAutomaticUpdate)) {
-                        // wait for 800ms
-                        new android.os.Handler().postDelayed(
-                                new Runnable() {
-                                    public void run() {
-                                        lastAutomaticUpdate = order.getOrderNumber();
-                                        fetchOrderItemsForStatusUpdate();
-                                    }
-                                },
-                                800);
-                    }
-
-                    if (batch == null) return;
-
-                    initObservers();
-
-                    order.setBatchId(batch.getBatchId());
-
-                    order.setStoreName(shopAccounts.get(selectedShopAccountIndex).getName());
-
-                    viewModel.insertOrder(order);
-
-                } catch (Exception ex) {
-                    Log.e(TAG, "onOrderFetchedResponse: " + ex.getMessage(), ex);
-                    Toast.makeText(ScannerActivity.this, "An Error Has Occurred: " + ex.getMessage() , Toast.LENGTH_LONG).show();
-                    showErrorText("ERROR. TRY AGAIN");
-                } finally {
-                    isScannerBusy = false;
-                }
-            }
-
-            @Override
-            public void onOrderFetchedErrorResponse(VolleyError error) {
-                Log.e(TAG, "onOrderFetchedErrorResponse: " + error.getMessage(), error);
-                Toast.makeText(ScannerActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
-                showErrorText("ERROR. TRY AGAIN");
-                isScannerBusy = false;
-            }
-        });
-
-        orderService.setOnOrderItemsFetchedListener(new OrderService.OnOrderItemsFetched() {
-            @Override
-            public void onOrderItemsFetchedResponse(JSONObject response) {
-                Log.d(TAG, "onOrderItemsFetchedResponse: " + response);
-                isScannerBusy = false;
-
-                try {
-                    List<OrderItem> orderItems = OrderService.parseOrderItems(response.getJSONArray("data"));
-                    updateOrderReadyToShip(orderItems);
-                } catch (Exception ex) {
-                    Log.d(TAG, "onOrderItemsFetchedResponse: " + ex.getMessage());
-                }
-            }
-
-            @Override
-            public void onOrderItemsFetchedErrorResponse(VolleyError error) {
-                Log.e(TAG, "onOrderItemsFetchedErrorResponse: " + error.getMessage(), error);
-                isScannerBusy = false;
-            }
-        });
-
-        orderService.setOnOrderUpdatedReadyToShipListener(new OrderService.OnOrderUpdatedReadyToShip() {
-            @Override
-            public void onOrderUpdatedReadyToShipResponse(JSONObject response) {
-                Log.d(TAG, "onOrderUpdatedReadyToShipResponse: " + response);
-                isScannerBusy = false;
-
-                try {
-                    fetchOrder(order.getOrderNumber());
-                } catch (Exception ex) {
-                    Log.e(TAG, "onOrderUpdatedReadyToShipResponse: " + ex.getMessage(), ex);
-                }
-
-            }
-
-            @Override
-            public void onOrderUpdatedReadyToShipErrorResponse(VolleyError error) {
-                Log.e(TAG, "onOrderUpdatedReadyToShipErrorResponse: " + error.getMessage(), error);
-                Toast.makeText(ScannerActivity.this, "Failed to update to ready to ship. Try again.", Toast.LENGTH_LONG).show();
-                isScannerBusy = false;
-            }
-        });
-    }
-
-    private void initSpinnerAccount() {
-        selectedShopAccountIndex = 0;
-
-        ArrayAdapter<ShopAccount> adapter =
-                new ArrayAdapter<ShopAccount>(getApplicationContext(),  android.R.layout.simple_spinner_dropdown_item, shopAccounts);
-        adapter.setDropDownViewResource( android.R.layout.simple_spinner_dropdown_item);
-        spinnerAccount.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                selectedShopAccount = shopAccounts.get(position);
-                selectedShopAccountIndex = position;
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
-            }
-        });
-
-        spinnerAccount.setAdapter(adapter);
-
-    }
-
-    private void initialiseDetectorsAndSources() {
-
-        barcodeDetector = new BarcodeDetector.Builder(this)
-                .setBarcodeFormats(Barcode.ALL_FORMATS)
-                .build();
-
-        cameraSource = new CameraSource.Builder(this, barcodeDetector)
-                .setRequestedPreviewSize(1280, 720)
-                .setAutoFocusEnabled(true) //you should add this feature
-                .build();
-
-        surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
-            @Override
-            public void surfaceCreated(SurfaceHolder holder) {
-                try {
-                    if (ActivityCompat.checkSelfPermission(ScannerActivity.this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                        cameraSource.start(surfaceView.getHolder());
-                    } else {
-                        ActivityCompat.requestPermissions(ScannerActivity.this, new
-                                String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
-                    }
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-
-            }
-
-            @Override
-            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-            }
-
-            @Override
-            public void surfaceDestroyed(SurfaceHolder holder) {
-                cameraSource.stop();
-            }
-        });
-
-        lastTimestamp = System.currentTimeMillis();
-        barcodeDetector.setProcessor(new Detector.Processor<Barcode>() {
-
-            @Override
-            public void release() {
-                // Toast.makeText(getApplicationContext(), "To prevent memory leaks barcode scanner has been stopped", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void receiveDetections(Detector.Detections<Barcode> detections) {
-                if(System.currentTimeMillis() - lastTimestamp <= DELAY) {
-                    // Too soon after the last barcode - ignore.
-                    return;
-                }
-
-                lastTimestamp = System.currentTimeMillis();
-
-                final SparseArray<Barcode> barcodes = detections.getDetectedItems();
-
-                if (barcodes.size() != 0) {
-
-
-                    barcodeText.post(new Runnable() {
-
-                        @Override
-                        public void run() {
-
-                            if (barcodes.valueAt(0).email != null) {
-                                barcodeText.removeCallbacks(null);
-                                barcodeData = barcodes.valueAt(0).email.address;
-                                barcodeText.setText(barcodeData);
-                                toneGen1.startTone(ToneGenerator.TONE_CDMA_PIP, 150);
-                            } else {
-
-                                barcodeData = barcodes.valueAt(0).displayValue;
-
-                                barcodeText.setText(barcodeData);
-                                toneGen1.startTone(ToneGenerator.TONE_CDMA_PIP, 150);
-
-
-
-                                //fetch order using barcode
-                                fetchOrder(barcodeData);
-                            }
-                        }
-                    });
-
-                }
-            }
-        });
-    }
-
+    // api methods
     private void fetchOrder(String barcodeData) {
         //define variables
         String orderId = barcodeData;
         String appKey = Constant.APP_KEY;
         String signMethod = Constant.SIGN_METHOD;
         String timestamp = String.valueOf(System.currentTimeMillis());
-        String accessToken = selectedShopAccount.getAccessToken();
+        String accessToken = shopAccounts.get(selectedShopAccountIndex).getAccessToken();
         String sign = "";
 
         // generate sign for this request
@@ -625,7 +327,7 @@ public class ScannerActivity extends AppCompatActivity {
         String appKey = Constant.APP_KEY;
         String signMethod = Constant.SIGN_METHOD;
         String timestamp = String.valueOf(System.currentTimeMillis());
-        String accessToken = selectedShopAccount.getAccessToken();
+        String accessToken = shopAccounts.get(selectedShopAccountIndex).getAccessToken();
         String sign = "";
 
         // generate sign for this request
@@ -658,9 +360,8 @@ public class ScannerActivity extends AppCompatActivity {
         String appKey = Constant.APP_KEY;
         String signMethod = Constant.SIGN_METHOD;
         String timestamp = String.valueOf(System.currentTimeMillis());
-        String accessToken = selectedShopAccount.getAccessToken();
+        String accessToken = shopAccounts.get(selectedShopAccountIndex).getAccessToken();
 
-//        String[] ids = new String[orderItems.size()];
         List<String> ids = new ArrayList<>();
 
         for (int i = 0 ; i < orderItems.size(); i++) {
@@ -706,6 +407,181 @@ public class ScannerActivity extends AppCompatActivity {
         orderService.updateOrderReadyToShip(map);
     }
 
+
+    //services
+    private void initOrderService() {
+        orderService = new OrderService(this);
+
+        orderService.setOnOrderFetchedListener(new OrderService.OnOrderFetched() {
+            @Override
+            public void onOrderFetchedResponse(JSONObject response) {
+                Log.d(TAG, "onOrderFetchedResponse: " + response);
+                showProgressBarFetchingOrder(false);
+
+                try {
+                    String code = response.getString("code");
+
+                    if(code.equals("16")) {
+                        //switch account
+                        selectedShopAccountIndex++;
+
+                        if(selectedShopAccountIndex == shopAccounts.size()) {
+                            selectedShopAccountIndex = 0;
+                        }
+
+
+
+                        if(tryAccountCount == shopAccounts.size()) {
+                            //invalid code, try again
+                            showErrorText("TRY AGAIN");
+                            return;
+                        }
+
+                        tryAccountCount++;
+
+                        //try again with another account
+                        fetchOrder(barcodeData);
+                        return;
+                    } else if (code.equals("InvalidParameter") || code.equals("MISSING_PARAMETER")) {
+                        //invalid barcode
+                        showErrorText("ERROR. INVALID BARCODE");
+                        return;
+                    }
+
+                    //reset try account count
+                    tryAccountCount = 0;
+
+                    order = OrderService.parseOrder(response);
+
+                    displayData(order);
+
+                    // update to ready to ship if pending
+                    if(order.getStatus().contains(STATUS_PENDING) && !order.getOrderNumber().equals(lastAutomaticUpdate)) {
+                        // wait for 800ms
+                        new android.os.Handler().postDelayed(
+                                new Runnable() {
+                                    public void run() {
+                                        lastAutomaticUpdate = order.getOrderNumber();
+                                        fetchOrderItemsForStatusUpdate();
+                                    }
+                                },
+                                800);
+                    }
+
+                    Log.d(TAG, "onOrderFetchedResponse: selectedShopAccountIndex->" +selectedShopAccountIndex );
+
+                    if (batch == null) return;
+
+                    initObservers();
+
+                    order.setBatchId(batch.getBatchId());
+
+                    order.setStoreName(shopAccounts.get(selectedShopAccountIndex).getName());
+
+
+                    viewModel.insertOrder(order);
+
+                } catch (Exception ex) {
+                    Log.e(TAG, "onOrderFetchedResponse: " + ex.getMessage(), ex);
+                    Toast.makeText(ScannerActivity.this, "An Error Has Occurred: " + ex.getMessage() , Toast.LENGTH_LONG).show();
+                    showErrorText("ERROR. TRY AGAIN");
+                } finally {
+                    new android.os.Handler().postDelayed(
+                            new Runnable() {
+                                public void run() {
+                                    isScannerBusy = false;
+                                }
+                            },
+                            1000);
+                }
+            }
+
+            @Override
+            public void onOrderFetchedErrorResponse(VolleyError error) {
+                Log.e(TAG, "onOrderFetchedErrorResponse: " + error.getMessage(), error);
+                Toast.makeText(ScannerActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
+                showErrorText("ERROR. TRY AGAIN");
+                isScannerBusy = false;
+            }
+        });
+
+        orderService.setOnOrderItemsFetchedListener(new OrderService.OnOrderItemsFetched() {
+            @Override
+            public void onOrderItemsFetchedResponse(JSONObject response) {
+                Log.d(TAG, "onOrderItemsFetchedResponse: " + response);
+
+                try {
+                    List<OrderItem> orderItems = OrderService.parseOrderItems(response.getJSONArray("data"));
+                    updateOrderReadyToShip(orderItems);
+                } catch (Exception ex) {
+                    Log.d(TAG, "onOrderItemsFetchedResponse: " + ex.getMessage());
+                }
+            }
+
+            @Override
+            public void onOrderItemsFetchedErrorResponse(VolleyError error) {
+                Log.e(TAG, "onOrderItemsFetchedErrorResponse: " + error.getMessage(), error);
+            }
+        });
+
+        orderService.setOnOrderUpdatedReadyToShipListener(new OrderService.OnOrderUpdatedReadyToShip() {
+            @Override
+            public void onOrderUpdatedReadyToShipResponse(JSONObject response) {
+                Log.d(TAG, "onOrderUpdatedReadyToShipResponse: " + response);
+                btnReadyToShip.setVisibility(View.GONE);
+
+                try {
+                    fetchOrder(order.getOrderNumber());
+                } catch (Exception ex) {
+                    Log.e(TAG, "onOrderUpdatedReadyToShipResponse: " + ex.getMessage(), ex);
+                }
+
+            }
+
+            @Override
+            public void onOrderUpdatedReadyToShipErrorResponse(VolleyError error) {
+                Log.e(TAG, "onOrderUpdatedReadyToShipErrorResponse: " + error.getMessage(), error);
+                Toast.makeText(ScannerActivity.this, "Failed to update to ready to ship. Try again.", Toast.LENGTH_LONG).show();
+                btnReadyToShip.setVisibility(View.VISIBLE);
+            }
+        });
+    }
+
+    private boolean checkIfDuplicate(String barcodeData) {
+
+        for (int i = 0 ; i < orders.size(); i++) {
+            if(orders.get(i).getOrderNumber().equals(barcodeData)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void initBarcodeScanner() {
+        Collection<BarcodeFormat> formats = Arrays.asList(BarcodeFormat.QR_CODE, BarcodeFormat.CODE_39);
+        Map<DecodeHintType, Object> map = new HashMap<DecodeHintType, Object>();
+        barcodeView.getBarcodeView().setDecoderFactory(new DefaultDecoderFactory(formats, map, "utf-8"));
+        barcodeView.initializeFromIntent(getIntent());
+        barcodeView.decodeContinuous(callback);
+
+        beepManager = new BeepManager(this);
+    }
+
+    private void askForExit() {
+        new AlertDialog.Builder(ScannerActivity.this)
+                .setTitle("Exit Scanner")
+                .setMessage("Batch Scan Is Ongoing. Do You Want To Exit?")
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        finish();
+                    }})
+                .setNegativeButton(android.R.string.no, null).show();
+
+    }
+
+
     private void displayData(Order order) {
         String status = "";
 
@@ -717,7 +593,7 @@ public class ScannerActivity extends AppCompatActivity {
                 tvStatuses.setTextColor(getResources().getColor(R.color.green));
                 break;
             case "pending":
-                status = "Pending";
+                status = "Pending, please wait while updating...";
                 break;
             case "unpaid":
                 status = "Unpaid";
@@ -735,7 +611,7 @@ public class ScannerActivity extends AppCompatActivity {
         }
         tvStatuses.setText(status);
         barcodeText.setText(barcodeData);
-        btnReadyToShip.setVisibility(order.getStatus().contains(STATUS_PENDING) ? View.VISIBLE : View.GONE);
+        tvStoreName.setText(shopAccounts.get(selectedShopAccountIndex).getName());
     }
 
     private void showProgressBarFetchingOrder(boolean show) {
@@ -748,7 +624,6 @@ public class ScannerActivity extends AppCompatActivity {
 
         tvStatuses.setVisibility(!show ? View.VISIBLE : View.GONE);
         barcodeText.setVisibility(!show ? View.VISIBLE : View.GONE);
-        btnReadyToShip.setVisibility(!show ? View.VISIBLE : View.GONE);
     }
 
     private void showErrorText(String text) {
@@ -803,7 +678,7 @@ public class ScannerActivity extends AppCompatActivity {
         setBatchScanOngoing(true);
 
         // tone to notify that batch scan has been started
-        toneGen2.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 150);
+        toneStartScan.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 150);
 
         initObservers();
     }
