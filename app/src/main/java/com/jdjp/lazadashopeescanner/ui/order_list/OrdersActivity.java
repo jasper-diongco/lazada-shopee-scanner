@@ -357,6 +357,7 @@ public class OrdersActivity extends AppCompatActivity {
 
         tvReadyToShipCount.setText(String.valueOf(readyToShipCount));
         tvCancelledCount.setText(String.valueOf(canceledCount));
+        tvTotalScan.setText(String.valueOf(orders.size()));
     }
 
 

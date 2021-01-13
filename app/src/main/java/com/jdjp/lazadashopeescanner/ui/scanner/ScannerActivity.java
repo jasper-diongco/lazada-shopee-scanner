@@ -3,8 +3,11 @@ package com.jdjp.lazadashopeescanner.ui.scanner;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -16,8 +19,11 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,6 +39,7 @@ import com.jdjp.lazadashopeescanner.model.OrderItem;
 import com.jdjp.lazadashopeescanner.model.ShopAccount;
 import com.jdjp.lazadashopeescanner.model.pojo.BatchWithExtraProps;
 import com.jdjp.lazadashopeescanner.services.OrderService;
+import com.jdjp.lazadashopeescanner.ui.order_list.OrdersAdapter;
 import com.jdjp.lazadashopeescanner.util.Constant;
 import com.jdjp.lazadashopeescanner.util.SignGeneratorUtil;
 import com.journeyapps.barcodescanner.BarcodeCallback;
@@ -54,6 +61,9 @@ public class ScannerActivity extends AppCompatActivity {
     private static final String TAG = "ScannerActivity";
     private static final String STATUS_PENDING = "pending";
     private static final int DELAY = 4000;
+    public static final int MODE_CAMERA = 0;
+    public static final int MODE_CONTINUOUS = 1;
+    public static final int MODE_OPEN = 2;
 
     //services
     private OrderService orderService;
@@ -69,9 +79,12 @@ public class ScannerActivity extends AppCompatActivity {
     private ProgressBar progressBarFetchingOrder;
     private TextView tvBatchScanIndicator;
     private Button btnStop;
-    private TextView tvStoreName;
-
     private DecoratedBarcodeView barcodeView;
+    private ConstraintLayout rootLayout;
+    private Button btnCamera;
+    private Button btnLaser;
+    private RecyclerView rvOrders;
+    private OrdersAdapter ordersAdapter;
 
 
     private BeepManager beepManager;
@@ -156,13 +169,18 @@ public class ScannerActivity extends AppCompatActivity {
         tvBatchScanIndicator = findViewById(R.id.tvBatchScanIndicator);
         btnStop = findViewById(R.id.btnStop);
         barcodeView = findViewById(R.id.barcodeView);
-        tvStoreName = findViewById(R.id.tvStoreName);
+        rootLayout = findViewById(R.id.rootLayout);
+        btnCamera = findViewById(R.id.btnCamera);
+        btnLaser = findViewById(R.id.btnLaser);
+        rvOrders = findViewById(R.id.rvOrders);
 
         // init methods
+        initModeSwitcher();
         initBarcodeScanner();
         defineActionBar();
         initOrderService();
         setBatchScanOngoing(false);
+        initRvOrders();
 
 
         //view model
@@ -532,6 +550,7 @@ public class ScannerActivity extends AppCompatActivity {
 
                 try {
                     fetchOrder(order.getOrderNumber());
+                    Toast.makeText(ScannerActivity.this, "Parcel Is In Ready To Ship Status", Toast.LENGTH_LONG).show();
                 } catch (Exception ex) {
                     Log.e(TAG, "onOrderUpdatedReadyToShipResponse: " + ex.getMessage(), ex);
                 }
@@ -611,7 +630,6 @@ public class ScannerActivity extends AppCompatActivity {
         }
         tvStatuses.setText(status);
         barcodeText.setText(barcodeData);
-        tvStoreName.setText(shopAccounts.get(selectedShopAccountIndex).getName());
     }
 
     private void showProgressBarFetchingOrder(boolean show) {
@@ -619,11 +637,11 @@ public class ScannerActivity extends AppCompatActivity {
         if(show && progressBarFetchingOrder.getVisibility() != View.VISIBLE) {
             progressBarFetchingOrder.setVisibility(View.VISIBLE);
         } else {
-            progressBarFetchingOrder.setVisibility(View.GONE);
+            progressBarFetchingOrder.setVisibility(View.INVISIBLE);
         }
 
-        tvStatuses.setVisibility(!show ? View.VISIBLE : View.GONE);
-        barcodeText.setVisibility(!show ? View.VISIBLE : View.GONE);
+        tvStatuses.setVisibility(!show ? View.VISIBLE : View.INVISIBLE);
+        barcodeText.setVisibility(!show ? View.VISIBLE : View.INVISIBLE);
     }
 
     private void showErrorText(String text) {
@@ -654,8 +672,6 @@ public class ScannerActivity extends AppCompatActivity {
 
         btnStartBatchScan.setVisibility(ongoing ? View.GONE : View.VISIBLE);
         btnStop.setVisibility(ongoing ? View.VISIBLE : View.GONE);
-
-
     }
 
     private void displayBatchCount(BatchWithExtraProps batchWithExtraProps) {
@@ -696,11 +712,69 @@ public class ScannerActivity extends AppCompatActivity {
                 @Override
                 public void onChanged(List<Order> _orders) {
                     orders = _orders;
+                    ordersAdapter.setOrders(orders);
                 }
             });
 
             listeningToBatch = true;
         }
+    }
+
+    private void initModeSwitcher() {
+        btnCamera.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                btnLaser.setBackgroundColor(getResources().getColor(R.color.white));
+                btnCamera.setBackgroundColor(getResources().getColor(R.color.blue_500));
+                btnCamera.setTextColor(getResources().getColor(R.color.white));
+                btnLaser.setTextColor(getResources().getColor(R.color.blue_500));
+
+                showCamera(true);
+                showRvOrders(false);
+            }
+        });
+
+        btnLaser.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                btnLaser.setBackgroundColor(getResources().getColor(R.color.blue_500));
+                btnCamera.setBackgroundColor(getResources().getColor(R.color.white));
+                btnCamera.setTextColor(getResources().getColor(R.color.blue_500));
+                btnLaser.setTextColor(getResources().getColor(R.color.white));
+
+                showCamera(false);
+                showRvOrders(true);
+            }
+        });
+    }
+
+    private void initRvOrders() {
+        rvOrders.setHasFixedSize(true);
+
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        rvOrders.setLayoutManager(layoutManager);
+
+        ordersAdapter = new OrdersAdapter(this);
+
+        rvOrders.setAdapter(ordersAdapter);
+    }
+
+    private void changeScanMode(int mode) {
+        if (mode == MODE_CAMERA) {
+            showCamera(true);
+        } else if(mode == MODE_CONTINUOUS) {
+            showCamera(false);
+        } else if(mode == MODE_OPEN) {
+            showCamera(false);
+        }
+    }
+
+    private void showCamera(boolean show) {
+        barcodeView.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private void showRvOrders(boolean show) {
+        rvOrders.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     private void defineActionBar() {
