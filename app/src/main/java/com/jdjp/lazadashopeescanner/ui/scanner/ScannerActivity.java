@@ -9,14 +9,20 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.device.ScanDevice;
 import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
@@ -62,8 +68,7 @@ public class ScannerActivity extends AppCompatActivity {
     private static final String STATUS_PENDING = "pending";
     private static final int DELAY = 4000;
     public static final int MODE_CAMERA = 0;
-    public static final int MODE_CONTINUOUS = 1;
-    public static final int MODE_OPEN = 2;
+    public static final int MODE_LASER = 1;
 
     //services
     private OrderService orderService;
@@ -85,11 +90,17 @@ public class ScannerActivity extends AppCompatActivity {
     private Button btnLaser;
     private RecyclerView rvOrders;
     private OrdersAdapter ordersAdapter;
+    private ScannerDeviceSettingsDialog scannerDeviceSettingsDialog;
+    private Menu menu;
 
-
+    // beeps
     private BeepManager beepManager;
     private ToneGenerator toneError;
     private ToneGenerator toneStartScan;
+
+    // for scanner device
+    private ScanDevice sm;
+    private final static String SCAN_ACTION = "scan.rcv.message";
 
     //view models
     private ScannerViewModel viewModel;
@@ -106,9 +117,11 @@ public class ScannerActivity extends AppCompatActivity {
     private boolean isScannerBusy = false;
     private String barcodeData;
     private long lastTimestamp = 0;
+    private int scanMode = MODE_CAMERA;
 
 
 
+    // camera mode
     private BarcodeCallback callback = new BarcodeCallback() {
         @Override
         public void barcodeResult(BarcodeResult result) {
@@ -118,7 +131,7 @@ public class ScannerActivity extends AppCompatActivity {
                 return;
             }
 
-            if(isScannerBusy) return;
+            if(isScannerBusy || scanMode != MODE_CAMERA) return;
 
             lastTimestamp = System.currentTimeMillis();
 
@@ -143,6 +156,33 @@ public class ScannerActivity extends AppCompatActivity {
 
         @Override
         public void possibleResultPoints(List<ResultPoint> resultPoints) {
+        }
+    };
+
+    //laser mode
+    private BroadcastReceiver mScanReceiver = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+
+            byte[] barocode = intent.getByteArrayExtra("barocode");
+            int barocodelen = intent.getIntExtra("length", 0);
+            byte temp = intent.getByteExtra("barcodeType", (byte) 0);
+            byte[] aimid = intent.getByteArrayExtra("aimid");
+            barcodeData = new String(barocode, 0, barocodelen);
+
+            boolean isDuplicate = checkIfDuplicate(barcodeData);
+
+            if(isDuplicate) {
+                toneError.startTone(ToneGenerator.TONE_SUP_ERROR, 150);
+            } else {
+                beepManager.playBeepSoundAndVibrate();
+            }
+
+            fetchOrder(barcodeData);
+
+            sm.stopScan();
+
         }
     };
 
@@ -181,6 +221,7 @@ public class ScannerActivity extends AppCompatActivity {
         initOrderService();
         setBatchScanOngoing(false);
         initRvOrders();
+        setupScanDevice();
 
 
         //view model
@@ -261,19 +302,29 @@ public class ScannerActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
 
-        switch (item.getItemId()) {
-            case android.R.id.home: {
-                if(batch != null) {
-                    askForExit();
-                } else {
-                    finish();
-                }
-
-                break;
+        if (item.getItemId() == android.R.id.home) {
+            if (batch != null) {
+                askForExit();
+            } else {
+                finish();
             }
+        } else if(item.getItemId() == R.id.menu_item_settings) {
+            showScannerSettingsDialog();
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.scanner_menu, menu);
+
+        menu.findItem(R.id.menu_item_settings).setVisible(false);
+
+        this.menu = menu;
+
+        return super.onCreateOptionsMenu(menu);
     }
 
     @Override
@@ -288,15 +339,33 @@ public class ScannerActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
         barcodeView.resume();
+
+        if(sm == null) return;
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(SCAN_ACTION);
+        registerReceiver(mScanReceiver, filter);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-
         barcodeView.pause();
+
+        if(sm == null) return;
+
+        unregisterReceiver(mScanReceiver);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (sm != null) {
+            sm.stopScan();
+            sm.setScanLaserMode(8);
+            sm.closeScan();
+        }
     }
 
     @Override
@@ -731,6 +800,10 @@ public class ScannerActivity extends AppCompatActivity {
 
                 showCamera(true);
                 showRvOrders(false);
+                scanMode = MODE_CAMERA;
+                setContinuousScan(false);
+
+                menu.findItem(R.id.menu_item_settings).setVisible(false);
             }
         });
 
@@ -742,8 +815,15 @@ public class ScannerActivity extends AppCompatActivity {
                 btnCamera.setTextColor(getResources().getColor(R.color.blue_500));
                 btnLaser.setTextColor(getResources().getColor(R.color.white));
 
+                if(sm == null) {
+                    Toast.makeText(ScannerActivity.this, "Your Device Doesn't Have Scanner", Toast.LENGTH_LONG).show();
+                }
+
                 showCamera(false);
                 showRvOrders(true);
+                scanMode = MODE_LASER;
+                setContinuousScan(true);
+                menu.findItem(R.id.menu_item_settings).setVisible(true);
             }
         });
     }
@@ -759,15 +839,6 @@ public class ScannerActivity extends AppCompatActivity {
         rvOrders.setAdapter(ordersAdapter);
     }
 
-    private void changeScanMode(int mode) {
-        if (mode == MODE_CAMERA) {
-            showCamera(true);
-        } else if(mode == MODE_CONTINUOUS) {
-            showCamera(false);
-        } else if(mode == MODE_OPEN) {
-            showCamera(false);
-        }
-    }
 
     private void showCamera(boolean show) {
         barcodeView.setVisibility(show ? View.VISIBLE : View.GONE);
@@ -775,6 +846,95 @@ public class ScannerActivity extends AppCompatActivity {
 
     private void showRvOrders(boolean show) {
         rvOrders.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private void setupScanDevice() {
+        try {
+            sm = new ScanDevice();
+            sm.setOutScanMode(0);
+        } catch (Exception e) {
+            Log.e(TAG, "setupScanDevice: " + e.getMessage(), e);
+            sm = null;
+        }
+    }
+
+    private void setContinuousScan(boolean continuousScan) {
+        if(sm == null) return;
+
+        if(continuousScan) {
+            sm.setScanLaserMode(4);
+        } else {
+            sm.setScanLaserMode(8);
+        }
+    }
+
+    private void showScannerSettingsDialog() {
+        if(sm == null) return;
+
+        boolean isScanOpened = sm.isScanOpened();
+        int outScanMode = sm.getOutScanMode();
+        boolean isVibrateOn = sm.getScanVibrateState();
+        boolean isSoundOn = sm.getScanBeepState();
+        int laserMode = sm.getScanLaserMode();
+        int indicatorLamp = sm.getIndicatorLightMode();
+
+        scannerDeviceSettingsDialog = ScannerDeviceSettingsDialog.newInstance("Settings", isScanOpened, outScanMode, isVibrateOn, isSoundOn, laserMode, indicatorLamp);
+        scannerDeviceSettingsDialog.show(getSupportFragmentManager(), "SETTINGS_DIALOG");
+
+
+        scannerDeviceSettingsDialog.setOnScanOpenedChangedListener(new ScannerDeviceSettingsDialog.OnScanOpenedChanged() {
+            @Override
+            public void onChange(boolean isScanOpened) {
+                if(isScanOpened) {
+                    sm.openScan();
+                } else {
+                    sm.closeScan();
+                }
+            }
+        });
+
+        scannerDeviceSettingsDialog.setOnOutScanModeChangedListener(new ScannerDeviceSettingsDialog.OnOutScanModeChanged() {
+            @Override
+            public void onChange(int outScanMode) {
+                sm.setOutScanMode(outScanMode);
+            }
+        });
+
+        scannerDeviceSettingsDialog.setOnVibrateChangedListener(new ScannerDeviceSettingsDialog.OnVibrateChanged() {
+            @Override
+            public void onChange(boolean isVibrateOn) {
+                if(isVibrateOn) {
+                    sm.setScanVibrate();
+                } else {
+                    sm.setScanUnVibrate();
+                }
+            }
+        });
+
+        scannerDeviceSettingsDialog.setOnSoundChangedListener(new ScannerDeviceSettingsDialog.OnSoundChanged() {
+            @Override
+            public void onChange(boolean isSoundOn) {
+                if(isSoundOn) {
+                    sm.setScanBeep();
+                } else {
+                    sm.setScanUnBeep();
+                }
+            }
+        });
+
+        scannerDeviceSettingsDialog.setOnLaserChangedListener(new ScannerDeviceSettingsDialog.OnLaserChanged() {
+            @Override
+            public void onChange(int laserMode) {
+                sm.setScanLaserMode(laserMode);
+            }
+        });
+
+        scannerDeviceSettingsDialog.setOnIndicatorLightChangedListener(new ScannerDeviceSettingsDialog.OnIndicatorLightChanged() {
+            @Override
+            public void onChange(int indicatorLightMode) {
+                sm.setIndicatorLightMode(indicatorLightMode);
+            }
+        });
     }
 
     private void defineActionBar() {
