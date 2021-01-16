@@ -18,6 +18,9 @@ public interface OrderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(Order order);
 
+    @Query("DELETE FROM orders WHERE batchId = :batchId")
+    void deleteAllByBatchId(int batchId);
+
     @Query("SELECT * FROM orders WHERE orderNumber = :orderNumber AND batchId = :batchId LIMIT 1")
     LiveData<Order> findOrder(String orderNumber, int batchId);
 

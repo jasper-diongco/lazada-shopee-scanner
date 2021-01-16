@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.viewpager2.widget.ViewPager2;
 
 import android.content.Context;
 import android.content.Intent;
@@ -25,6 +26,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.VolleyError;
+import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.tabs.TabLayoutMediator;
 import com.jdjp.lazadashopeescanner.R;
 import com.jdjp.lazadashopeescanner.model.Order;
 import com.jdjp.lazadashopeescanner.model.OrderItem;
@@ -74,6 +77,9 @@ public class OrdersActivity extends AppCompatActivity {
     private Spinner spinnerAccount;
     private SwipeRefreshLayout swipeRefreshLayout;
     private TextView tvLastRefresh;
+    private StoresTabAdapter tabAdapter;
+    private ViewPager2 viewPager;
+    private TabLayout tabs;
 
     //services
     private OrderService orderService;
@@ -95,11 +101,14 @@ public class OrdersActivity extends AppCompatActivity {
         spinnerAccount = findViewById(R.id.spinnerAccount);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         tvLastRefresh = findViewById(R.id.tvLastRefresh);
+        tabs = findViewById(R.id.tabs);
+        viewPager = findViewById(R.id.view_pager);
 
         //init methods
         initRecyclerView();
         defineActionBar();
         initOrderService();
+        setupTabLayout();
 
 
         //view model
@@ -136,6 +145,8 @@ public class OrdersActivity extends AppCompatActivity {
                 }
 
                 OrdersActivity.this.storeWithOrdersList = storeWithOrders;
+
+                tabAdapter.setStoreWithOrdersList(storeWithOrdersList);
             }
         });
 
@@ -303,6 +314,8 @@ public class OrdersActivity extends AppCompatActivity {
             @Override
             public void onFetchMultipleOrderItemsErrorResponse(VolleyError error) {
                 Log.e(TAG, "onFetchMultipleOrderItemsErrorResponse: " + error.getMessage(), error);
+                Toast.makeText(OrdersActivity.this, error.getMessage(), Toast.LENGTH_LONG).show();
+                swipeRefreshLayout.setRefreshing(false);
             }
         });
     }
@@ -326,6 +339,7 @@ public class OrdersActivity extends AppCompatActivity {
                 order.setBatchId(batchId);
                 order.setStoreName(selectedShopAccount.getName());
                 order.setStatus(strStatus);
+                order.setItemsCount(orderItems.size());
 
                 Log.d(TAG, " : " + order.toString());
 
@@ -370,6 +384,35 @@ public class OrdersActivity extends AppCompatActivity {
         adapter = new OrdersAdapter(this);
 
         recyclerView.setAdapter(adapter);
+    }
+
+    private void setupTabLayout() {
+        tabAdapter = new StoresTabAdapter(this);
+
+        viewPager.setAdapter(tabAdapter);
+
+        viewPager.setOffscreenPageLimit(10);
+
+        new TabLayoutMediator(tabs, viewPager, new TabLayoutMediator.TabConfigurationStrategy() {
+            @Override
+            public void onConfigureTab(@NonNull TabLayout.Tab tab, int position) {
+                // Required empty TabConfigurationStrategy
+                tab.setText(storeWithOrdersList.get(position).getShopAccount().getName());
+            }
+        }).attach();
+
+        initTabItemListeners();
+    }
+
+    private void initTabItemListeners() {
+        tabAdapter.setOnSwipeRefreshListener(new StoresTabAdapter.OnSwipeRefreshListener() {
+            @Override
+            public void onRefresh(int index, SwipeRefreshLayout swipeRefreshLayout) {
+                selectedShopAccount = shopAccounts.get(index);
+                fetchMultipleOrderItems();
+                OrdersActivity.this.swipeRefreshLayout = swipeRefreshLayout;
+            }
+        });
     }
 
 

@@ -46,4 +46,13 @@ public class OrderRepository {
             }
         }).start();
     }
+
+    public void deleteAllByBatchId(int batchId) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                orderDao.deleteAllByBatchId(batchId);
+            }
+        }).start();
+    }
 }

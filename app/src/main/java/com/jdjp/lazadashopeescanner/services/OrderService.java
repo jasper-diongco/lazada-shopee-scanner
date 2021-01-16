@@ -166,7 +166,7 @@ public class OrderService {
 //            order.setShippingFee(data.getDouble("shipping_fee"));
 //            order.setShippingFeeOriginal(data.getDouble("shipping_fee_original"));
 //            order.setPaymentMethod(data.getString("payment_method"));
-//            order.setItemsCount(data.getInt("items_count"));
+            order.setItemsCount(data.getInt("items_count"));
 //            order.setCreatedAt(data.getString("created_at"));
 //            order.setUpdatedAt(data.getString("updated_at"));
 

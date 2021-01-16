@@ -22,7 +22,7 @@ public interface ShopAccountDao {
     @Delete
     void delete(ShopAccount shopAccount);
 
-    @Query("SELECT * FROM shop_accounts ORDER BY createdAt DESC")
+    @Query("SELECT * FROM shop_accounts")
     LiveData<List<ShopAccount>> getAllShopAccounts();
 
 

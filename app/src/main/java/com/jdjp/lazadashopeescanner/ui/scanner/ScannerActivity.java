@@ -17,6 +17,7 @@ import android.content.IntentFilter;
 import android.device.ScanDevice;
 import android.graphics.Color;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.util.Log;
@@ -139,14 +140,6 @@ public class ScannerActivity extends AppCompatActivity {
 
             barcodeData = result.getText();
 
-            boolean isDuplicate = checkIfDuplicate(barcodeData);
-
-            if(isDuplicate) {
-                toneError.startTone(ToneGenerator.TONE_SUP_ERROR, 150);
-            } else {
-                beepManager.playBeepSoundAndVibrate();
-            }
-
 
             fetchOrder(barcodeData);
 
@@ -171,13 +164,6 @@ public class ScannerActivity extends AppCompatActivity {
             byte[] aimid = intent.getByteArrayExtra("aimid");
             barcodeData = new String(barocode, 0, barocodelen);
 
-            boolean isDuplicate = checkIfDuplicate(barcodeData);
-
-            if(isDuplicate) {
-                toneError.startTone(ToneGenerator.TONE_SUP_ERROR, 150);
-            } else {
-                beepManager.playBeepSoundAndVibrate();
-            }
 
             fetchOrder(barcodeData);
 
@@ -222,6 +208,7 @@ public class ScannerActivity extends AppCompatActivity {
         setBatchScanOngoing(false);
         initRvOrders();
         setupScanDevice();
+        updateViewsToLaserMode();
 
 
         //view model
@@ -319,8 +306,6 @@ public class ScannerActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.scanner_menu, menu);
-
-        menu.findItem(R.id.menu_item_settings).setVisible(false);
 
         this.menu = menu;
 
@@ -557,6 +542,8 @@ public class ScannerActivity extends AppCompatActivity {
 
                     Log.d(TAG, "onOrderFetchedResponse: selectedShopAccountIndex->" +selectedShopAccountIndex );
 
+                    playSound(order);
+
                     if (batch == null) return;
 
                     initObservers();
@@ -568,10 +555,13 @@ public class ScannerActivity extends AppCompatActivity {
 
                     viewModel.insertOrder(order);
 
+
+
                 } catch (Exception ex) {
                     Log.e(TAG, "onOrderFetchedResponse: " + ex.getMessage(), ex);
                     Toast.makeText(ScannerActivity.this, "An Error Has Occurred: " + ex.getMessage() , Toast.LENGTH_LONG).show();
                     showErrorText("ERROR. TRY AGAIN");
+                    playInvalidSound();
                 } finally {
                     new android.os.Handler().postDelayed(
                             new Runnable() {
@@ -681,7 +671,7 @@ public class ScannerActivity extends AppCompatActivity {
                 tvStatuses.setTextColor(getResources().getColor(R.color.green));
                 break;
             case "pending":
-                status = "Pending, please wait while updating...";
+                status = "pending, please wait while updating...";
                 break;
             case "unpaid":
                 status = "Unpaid";
@@ -793,39 +783,52 @@ public class ScannerActivity extends AppCompatActivity {
         btnCamera.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                btnLaser.setBackgroundColor(getResources().getColor(R.color.white));
-                btnCamera.setBackgroundColor(getResources().getColor(R.color.blue_500));
-                btnCamera.setTextColor(getResources().getColor(R.color.white));
-                btnLaser.setTextColor(getResources().getColor(R.color.blue_500));
-
-                showCamera(true);
-                showRvOrders(false);
-                scanMode = MODE_CAMERA;
-                setContinuousScan(false);
-
-                menu.findItem(R.id.menu_item_settings).setVisible(false);
+                updateViewsToCameraMode();
             }
         });
 
         btnLaser.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                btnLaser.setBackgroundColor(getResources().getColor(R.color.blue_500));
-                btnCamera.setBackgroundColor(getResources().getColor(R.color.white));
-                btnCamera.setTextColor(getResources().getColor(R.color.blue_500));
-                btnLaser.setTextColor(getResources().getColor(R.color.white));
+                updateViewsToLaserMode();
 
                 if(sm == null) {
                     Toast.makeText(ScannerActivity.this, "Your Device Doesn't Have Scanner", Toast.LENGTH_LONG).show();
                 }
-
-                showCamera(false);
-                showRvOrders(true);
-                scanMode = MODE_LASER;
-                setContinuousScan(true);
-                menu.findItem(R.id.menu_item_settings).setVisible(true);
             }
         });
+    }
+
+    private void updateViewsToLaserMode() {
+        btnLaser.setBackgroundColor(getResources().getColor(R.color.blue_500));
+        btnCamera.setBackgroundColor(getResources().getColor(R.color.white));
+        btnCamera.setTextColor(getResources().getColor(R.color.blue_500));
+        btnLaser.setTextColor(getResources().getColor(R.color.white));
+
+        showCamera(false);
+        showRvOrders(true);
+        scanMode = MODE_LASER;
+
+        if(menu != null) {
+            menu.findItem(R.id.menu_item_settings).setVisible(true);
+        }
+
+    }
+
+    private void updateViewsToCameraMode() {
+        btnLaser.setBackgroundColor(getResources().getColor(R.color.white));
+        btnCamera.setBackgroundColor(getResources().getColor(R.color.blue_500));
+        btnCamera.setTextColor(getResources().getColor(R.color.white));
+        btnLaser.setTextColor(getResources().getColor(R.color.blue_500));
+
+        showCamera(true);
+        showRvOrders(false);
+        scanMode = MODE_CAMERA;
+
+        if(menu != null) {
+            menu.findItem(R.id.menu_item_settings).setVisible(false);
+        }
+
     }
 
     private void initRvOrders() {
@@ -935,6 +938,52 @@ public class ScannerActivity extends AppCompatActivity {
                 sm.setIndicatorLightMode(indicatorLightMode);
             }
         });
+    }
+
+    private void playSound(Order order) {
+        boolean isDuplicate = checkIfDuplicate(barcodeData);
+
+        if (isDuplicate) {
+            playDuplicateSound();
+        } else if (order.getStatus().contains("ready_to_ship")) {
+            playValidSound();
+        } else if (order.getStatus().contains("canceled")) {
+            playInvalidSound();
+        } else if (order.getStatus().contains("pending")) {
+            toneError.startTone(ToneGenerator.TONE_PROP_BEEP, 150);
+        } else {
+            playInvalidSound();
+        }
+    }
+
+    private void playValidSound() {
+        try {
+            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.correct);
+            mp.start();
+        } catch (Exception ex) {
+            beepManager.playBeepSoundAndVibrate();
+        }
+
+    }
+
+    private void playInvalidSound() {
+        try {
+            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.wrong);
+            mp.start();
+        } catch (Exception ex) {
+            toneError.startTone(ToneGenerator.TONE_SUP_ERROR, 150);
+        }
+
+    }
+
+    private void playDuplicateSound() {
+        try {
+            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.duplicate);
+            mp.start();
+        } catch (Exception ex) {
+            toneError.startTone(ToneGenerator.TONE_SUP_ERROR, 150);
+        }
+
     }
 
     private void defineActionBar() {

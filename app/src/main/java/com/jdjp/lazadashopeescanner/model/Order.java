@@ -5,7 +5,7 @@ import androidx.room.Entity;
 
 
 @Entity(tableName = "orders", primaryKeys = { "orderNumber", "batchId" })
-public class Order {
+public class Order implements Comparable<Order> {
     @NonNull
     private String orderNumber;
     @NonNull
@@ -22,8 +22,8 @@ public class Order {
 //    private double shippingFeeOriginal;
 //    @NonNull
 //    private String paymentMethod;
-//    @NonNull
-//    private int itemsCount;
+    @NonNull
+    private int itemsCount;
     @NonNull
     private String status;
     @NonNull
@@ -33,6 +33,32 @@ public class Order {
 
     @NonNull
     private String storeName;
+
+    public String getDisplayStatus() {
+        String[] statuses = status.split(" ");
+
+        if(statuses.length == 1) {
+            return status;
+        }
+
+        for (int i = 1 ; i < statuses.length; i++) {
+            if(!statuses[0].equals(statuses[i])) {
+                return status;
+            }
+        }
+
+        return statuses[0];
+    }
+
+    @Override
+    public int compareTo(@NonNull Order order) {
+        long orderNumberOther = Long.parseLong(order.getOrderNumber());
+
+        //ascending order
+        return (int) (Long.parseLong(this.orderNumber) - orderNumberOther);
+
+    }
+
 
     public String getOrderNumber() {
         return orderNumber;
@@ -98,13 +124,13 @@ public class Order {
 //        this.paymentMethod = paymentMethod;
 //    }
 //
-//    public int getItemsCount() {
-//        return itemsCount;
-//    }
-//
-//    public void setItemsCount(int itemsCount) {
-//        this.itemsCount = itemsCount;
-//    }
+    public int getItemsCount() {
+        return itemsCount;
+    }
+
+    public void setItemsCount(int itemsCount) {
+        this.itemsCount = itemsCount;
+    }
 //
 //    public String getCreatedAt() {
 //        return createdAt;

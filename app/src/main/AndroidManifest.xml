@@ -16,7 +16,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.LazadaShopeeScanner">
-        <activity android:name=".ui.order_list.OrdersActivity"></activity>
+        <activity android:name=".ui.batch_list.BatchListActivity"></activity>
+        <activity android:name=".ui.order_list.OrdersActivity" />
 
         <meta-data
             android:name="com.google.android.gms.vision.DEPENDENCIES"
@@ -31,15 +32,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
+
         <provider
-            android:authorities="com.jdjp.lazadashopeescanner.fileprovider"
             android:name="androidx.core.content.FileProvider"
-            android:grantUriPermissions="true"
-            android:exported="false">
+            android:authorities="com.jdjp.lazadashopeescanner.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/provider_paths"/>
+                android:resource="@xml/provider_paths" />
         </provider>
     </application>
 

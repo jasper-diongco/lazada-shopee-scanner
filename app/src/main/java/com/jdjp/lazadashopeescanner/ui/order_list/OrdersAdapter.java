@@ -74,6 +74,7 @@ public class OrdersAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         private TextView tvOrderNumber;
         private TextView tvStatus;
         private TextView tvStoreName;
+        private TextView tvQuantity;
 
 
         OrderViewHolder(View v) {
@@ -82,46 +83,32 @@ public class OrdersAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             tvOrderNumber = v.findViewById(R.id.tvOrderNumber);
             tvStatus = v.findViewById(R.id.tvStatus);
             tvStoreName = v.findViewById(R.id.tvStoreName);
+            tvQuantity = v.findViewById(R.id.tvQuantity);
 
             initEvents();
         }
 
         public void bind(Order order) {
-            tvOrderNumber.setText(order.getOrderNumber());
-            tvStatus.setText(order.getStatus());
 
-
-            String text;
             int textColor = context.getResources().getColor(R.color.black);
 
             switch (order.getStatus()) {
                 case "ready_to_ship":
-                    text = "Ready To Ship";
                     textColor = context.getResources().getColor(R.color.green);
                     break;
-                case "pending":
-                    text = "Pending";
-                    break;
-                case "unpaid":
-                    text = "Unpaid";
-                    break;
-                case "delivered":
-                    text = "Delivered";
-                    break;
                 case "canceled":
-                    text = "Canceled";
                     textColor = context.getResources().getColor(R.color.red);
                     break;
                 default:
-                    text = order.getStatus();
                     textColor = context.getResources().getColor(R.color.black);
                     break;
             }
 
-            tvStatus.setText(text);
+            tvOrderNumber.setText(order.getOrderNumber());
+            tvStatus.setText(order.getDisplayStatus());
             tvStatus.setTextColor(textColor);
             tvStoreName.setText(order.getStoreName());
-
+            tvQuantity.setText("Qty: " + order.getItemsCount());
         }
 
         public void initEvents() {
