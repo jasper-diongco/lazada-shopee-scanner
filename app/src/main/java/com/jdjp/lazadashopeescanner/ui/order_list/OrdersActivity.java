@@ -196,8 +196,26 @@ public class OrdersActivity extends AppCompatActivity {
     }
 
     private void fetchMultipleOrderItems() {
-        //define variables
         String[] orderIds = getOrdersIdByStoreName(selectedShopAccount.getName());
+
+        List<String> ids = new ArrayList<>();
+
+        for (int i = 0 ; i < orderIds.length; i++) {
+            ids.add(orderIds[i]);
+
+            if(ids.size() >= 50) {
+                fetchMultipleOrderItemsPer50(ids.toArray(new String[0]));
+                ids = new ArrayList<>();
+            }
+
+        }
+
+        fetchMultipleOrderItemsPer50(ids.toArray(new String[0]));
+    }
+
+    private void fetchMultipleOrderItemsPer50(String[] orderIds) {
+        //define variables
+
         String appKey = Constant.APP_KEY;
         String signMethod = Constant.SIGN_METHOD;
         String timestamp = String.valueOf(System.currentTimeMillis());
@@ -343,7 +361,8 @@ public class OrdersActivity extends AppCompatActivity {
 
                 Log.d(TAG, " : " + order.toString());
 
-                viewModel.insertOrder(order);
+//                viewModel.insertOrder(order);
+                viewModel.updateOrder(order.getOrderNumber(), order.getStatus());
             }
         } catch (Exception e) {
             Log.e(TAG, "updateOrders: " + e.getMessage(), e);

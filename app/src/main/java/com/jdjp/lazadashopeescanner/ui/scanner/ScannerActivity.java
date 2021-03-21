@@ -542,6 +542,12 @@ public class ScannerActivity extends AppCompatActivity {
 
                     Log.d(TAG, "onOrderFetchedResponse: selectedShopAccountIndex->" +selectedShopAccountIndex );
 
+                    boolean isDuplicate = checkIfDuplicate(barcodeData);
+
+                    if(isDuplicate) {
+                        Toast.makeText(ScannerActivity.this, "Duplicate", Toast.LENGTH_SHORT).show();
+                    }
+
                     playSound(order);
 
                     if (batch == null) return;

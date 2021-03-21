@@ -53,6 +53,10 @@ public class OrdersViewModel extends AndroidViewModel {
         orderRepository.insert(order);
     }
 
+    public void updateOrder(String orderNumber, String status) {
+        orderRepository.update(orderNumber, status);
+    }
+
 
 
 }

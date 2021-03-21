@@ -47,6 +47,15 @@ public class OrderRepository {
         }).start();
     }
 
+    public void update(String orderNumber, String status) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                orderDao.update(orderNumber, status);
+            }
+        }).start();
+    }
+
     public void deleteAllByBatchId(int batchId) {
         new Thread(new Runnable() {
             @Override

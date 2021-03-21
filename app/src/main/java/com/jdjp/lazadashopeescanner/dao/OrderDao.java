@@ -18,6 +18,9 @@ public interface OrderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(Order order);
 
+    @Query("UPDATE orders SET status = :status WHERE orderNumber = :orderNumber")
+    void update(String orderNumber, String status);
+
     @Query("DELETE FROM orders WHERE batchId = :batchId")
     void deleteAllByBatchId(int batchId);
 
